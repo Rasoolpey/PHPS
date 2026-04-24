@@ -1,0 +1,155 @@
+{
+  "description": "Kundur two-area — Line_8 (Bus 8-9 circuit b) trip at t=2.0 s, reconnect at t=2.1 s",
+
+  "system": "system.json",
+
+  "solver": {
+    "method": "rk4",
+    "dt": 0.0001,
+    "duration": 15.0
+  },
+
+  "output": {
+    "directory": "outputs/Kundur/line_trip"
+  },
+
+  "events": [
+    { "type": "Toggler", "model": "Line", "dev": "Line_8", "t": 2.0 },
+    { "type": "Toggler", "model": "Line", "dev": "Line_8", "t": 2.1 }
+  ],
+
+  "figures": [
+    {
+      "name": "simulation_plot",
+      "panels": [
+        {
+          "title": "Terminal Voltages",
+          "y_label": "Vterm [pu]",
+          "signals": [{ "pattern": "Vterm_*" }]
+        },
+        {
+          "title": "Rotor Angle (relative to Gen 1)",
+          "y_label": "delta [deg]",
+          "signals": [
+            { "pattern": "GENROU_1_delta", "transform": "rad2deg", "label": "Gen 1" },
+            { "pattern": "GENROU_2_delta", "transform": "rad2deg", "label": "Gen 2" },
+            { "pattern": "GENROU_3_delta", "transform": "rad2deg", "label": "Gen 3" },
+            { "pattern": "GENROU_4_delta", "transform": "rad2deg", "label": "Gen 4" }
+          ]
+        },
+        {
+          "title": "Rotor Speed",
+          "y_label": "omega [pu]",
+          "signals": [
+            { "pattern": "GENROU_1_omega", "label": "Gen 1" },
+            { "pattern": "GENROU_2_omega", "label": "Gen 2" },
+            { "pattern": "GENROU_3_omega", "label": "Gen 3" },
+            { "pattern": "GENROU_4_omega", "label": "Gen 4" }
+          ]
+        },
+        {
+          "title": "Field Voltage (Efd)",
+          "y_label": "Efd [pu]",
+          "signals": [{ "pattern": "*_Efd_out" }]
+        },
+        {
+          "title": "Mechanical Torque (Tm)",
+          "y_label": "Tm [pu]",
+          "signals": [{ "pattern": "TGOV1_*_x1" }]
+        }
+      ]
+    },
+    {
+      "name": "power_and_bus_voltages",
+      "panels": [
+        {
+          "title": "Generator Active Power",
+          "y_label": "Pe [pu]",
+          "signals": [
+            { "pattern": "Pe_GENROU_1", "label": "Gen 1" },
+            { "pattern": "Pe_GENROU_2", "label": "Gen 2" },
+            { "pattern": "Pe_GENROU_3", "label": "Gen 3" },
+            { "pattern": "Pe_GENROU_4", "label": "Gen 4" }
+          ]
+        },
+        {
+          "title": "Generator Reactive Power",
+          "y_label": "Qe [pu]",
+          "signals": [
+            { "pattern": "Qe_GENROU_1", "label": "Gen 1" },
+            { "pattern": "Qe_GENROU_2", "label": "Gen 2" },
+            { "pattern": "Qe_GENROU_3", "label": "Gen 3" },
+            { "pattern": "Qe_GENROU_4", "label": "Gen 4" }
+          ]
+        },
+        {
+          "title": "Transmission Bus Voltages (Observer Buses)",
+          "y_label": "|V| [pu]",
+          "signals": [
+            { "pattern": "Vterm_Bus5",  "label": "Bus 5" },
+            { "pattern": "Vterm_Bus6",  "label": "Bus 6" },
+            { "pattern": "Vterm_Bus7",  "label": "Bus 7 (Load)" },
+            { "pattern": "Vterm_Bus8",  "label": "Bus 8 (Load)" },
+            { "pattern": "Vterm_Bus9",  "label": "Bus 9" },
+            { "pattern": "Vterm_Bus10", "label": "Bus 10" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "governor_exciter_outputs",
+      "panels": [
+        {
+          "title": "Governor Valve Position (x1 ≈ Pm setpoint)",
+          "y_label": "x1 [pu]",
+          "signals": [
+            { "pattern": "TGOV1_1_x1", "label": "Gov 1" },
+            { "pattern": "TGOV1_2_x1", "label": "Gov 2" },
+            { "pattern": "TGOV1_3_x1", "label": "Gov 3" },
+            { "pattern": "TGOV1_4_x1", "label": "Gov 4" }
+          ]
+        },
+        {
+          "title": "Governor Turbine Output (x2 = Tm)",
+          "y_label": "Tm [pu]",
+          "signals": [
+            { "pattern": "TGOV1_1_x2", "label": "Gov 1" },
+            { "pattern": "TGOV1_2_x2", "label": "Gov 2" },
+            { "pattern": "TGOV1_3_x2", "label": "Gov 3" },
+            { "pattern": "TGOV1_4_x2", "label": "Gov 4" }
+          ]
+        },
+        {
+          "title": "Exciter Field Voltage (Efd)",
+          "y_label": "Efd [pu]",
+          "signals": [
+            { "pattern": "EXDC2_1_Efd", "label": "Exc 1" },
+            { "pattern": "EXDC2_2_Efd", "label": "Exc 2" },
+            { "pattern": "EXDC2_3_Efd", "label": "Exc 3" },
+            { "pattern": "EXDC2_4_Efd", "label": "Exc 4" }
+          ]
+        },
+        {
+          "title": "Exciter Regulator Output (Vr)",
+          "y_label": "Vr [pu]",
+          "signals": [
+            { "pattern": "EXDC2_1_Vr", "label": "Exc 1" },
+            { "pattern": "EXDC2_2_Vr", "label": "Exc 2" },
+            { "pattern": "EXDC2_3_Vr", "label": "Exc 3" },
+            { "pattern": "EXDC2_4_Vr", "label": "Exc 4" }
+          ]
+        },
+        {
+          "title": "Exciter Terminal Voltage Transducer (Vm)",
+          "y_label": "Vm [pu]",
+          "signals": [
+            { "pattern": "EXDC2_1_Vm", "label": "Exc 1" },
+            { "pattern": "EXDC2_2_Vm", "label": "Exc 2" },
+            { "pattern": "EXDC2_3_Vm", "label": "Exc 3" },
+            { "pattern": "EXDC2_4_Vm", "label": "Exc 4" }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "description": "SMIB DAE (IDA) — PHS models, no fault",
+  "system": "system_phs.json",
+
+  "solver": {
+    "method": "ida",
+    "dt": 0.0005,
+    "duration": 15.0
+  },
+
+  "output": {
+    "directory": "outputs/SMIB_phs"
+  },
+
+  "plots": [
+    {
+      "title": "Terminal Voltages",
+      "y_label": "Vterm [pu]",
+      "signals": [
+        { "pattern": "Vterm_Bus*" }
+      ]
+    },
+    {
+      "title": "Rotor Angle",
+      "y_label": "δ [rad]",
+      "signals": [
+        { "pattern": "GENROU*delta" }
+      ]
+    },
+    {
+      "title": "Rotor Speed",
+      "y_label": "ω [pu]",
+      "signals": [
+        { "pattern": "GENROU*omega" }
+      ]
+    }
+  ]
+}

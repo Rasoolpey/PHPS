@@ -1,0 +1,15 @@
+# Predicted wind speed profile for MPC predictive torsional damping
+# This is the "perfect forecast" — identical to the actual wind_gust_profile.txt.
+# To test misprediction robustness, modify this file while keeping
+# wind_gust_profile.txt unchanged (the actual wind seen by the drivetrain).
+#
+# t(s),  vw(m/s)
+# Nominal 12 m/s, with step gusts at t=20s and t=40s
+0.0,    12.0
+19.0,   12.0
+20.0,   15.0
+30.0,   15.0
+31.0,    9.0
+45.0,    9.0
+46.0,   12.0
+60.0,   12.0

@@ -1,0 +1,13 @@
+{
+  "description": "SMIB IDA-PBC \u2014 no-fault steady-state verification",
+  "system": "system.json",
+  "solver": {
+    "method": "rk4",
+    "dt": 0.001,
+    "duration": 10.0
+  },
+  "output": {
+    "directory": "outputs/SMIB_IdaPBC/no_fault"
+  },
+  "events": []
+}

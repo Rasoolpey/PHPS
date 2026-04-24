@@ -1,0 +1,1869 @@
+{
+  "name": "IEEE 14-Bus DFIG — MPC RSC with Predictive Torsional Damping (wind gust)",
+  "description": "IEEE 14-bus with 4 DFIGs, MPC RSC + predicted wind speed for anticipatory torsional damping.",
+  "Bus": [
+    {
+      "idx": 1,
+      "name": "Bus  1",
+      "Vn": 69.0,
+      "v0": 1.03,
+      "a0": 0.0,
+      "u": 1.0
+    },
+    {
+      "idx": 2,
+      "name": "Bus  2",
+      "Vn": 69.0,
+      "v0": 1.03,
+      "a0": 0.0,
+      "u": 1.0
+    },
+    {
+      "idx": 3,
+      "name": "Bus  3",
+      "Vn": 69.0,
+      "v0": 1.01,
+      "a0": 0.0,
+      "u": 1.0
+    },
+    {
+      "idx": 4,
+      "name": "Bus  4",
+      "Vn": 69.0,
+      "v0": 1.0,
+      "a0": 0.0,
+      "u": 1.0
+    },
+    {
+      "idx": 5,
+      "name": "Bus  5",
+      "Vn": 69.0,
+      "v0": 1.0,
+      "a0": 0.0,
+      "u": 1.0
+    },
+    {
+      "idx": 6,
+      "name": "Bus  6",
+      "Vn": 138.0,
+      "v0": 1.03,
+      "a0": 0.0,
+      "u": 1.0
+    },
+    {
+      "idx": 7,
+      "name": "Bus  7",
+      "Vn": 138.0,
+      "v0": 1.0,
+      "a0": 0.0,
+      "u": 1.0
+    },
+    {
+      "idx": 8,
+      "name": "Bus  8",
+      "Vn": 69.0,
+      "v0": 1.03,
+      "a0": 0.0,
+      "u": 1.0
+    },
+    {
+      "idx": 9,
+      "name": "Bus  9",
+      "Vn": 138.0,
+      "v0": 1.0,
+      "a0": 0.0,
+      "u": 1.0
+    },
+    {
+      "idx": 10,
+      "name": "Bus 10",
+      "Vn": 138.0,
+      "v0": 1.0,
+      "a0": 0.0,
+      "u": 1.0
+    },
+    {
+      "idx": 11,
+      "name": "Bus 11",
+      "Vn": 138.0,
+      "v0": 1.0,
+      "a0": 0.0,
+      "u": 1.0
+    },
+    {
+      "idx": 12,
+      "name": "Bus 12",
+      "Vn": 138.0,
+      "v0": 1.0,
+      "a0": 0.0,
+      "u": 1.0
+    },
+    {
+      "idx": 13,
+      "name": "Bus 13",
+      "Vn": 138.0,
+      "v0": 1.0,
+      "a0": 0.0,
+      "u": 1.0
+    },
+    {
+      "idx": 14,
+      "name": "Bus 14",
+      "Vn": 138.0,
+      "v0": 1.0,
+      "a0": 0.0,
+      "u": 1.0
+    }
+  ],
+  "PQ": [
+    {
+      "idx": 1,
+      "name": "PQ 1",
+      "bus": 2,
+      "Vn": 69.0,
+      "p0": 0.217,
+      "q0": 0.127,
+      "u": 1.0
+    },
+    {
+      "idx": 2,
+      "name": "PQ 2",
+      "bus": 3,
+      "Vn": 69.0,
+      "p0": 0.942,
+      "q0": 0.19,
+      "u": 1.0
+    },
+    {
+      "idx": 3,
+      "name": "PQ 3",
+      "bus": 4,
+      "Vn": 69.0,
+      "p0": 0.478,
+      "q0": -0.039,
+      "u": 1.0
+    },
+    {
+      "idx": 4,
+      "name": "PQ 4",
+      "bus": 5,
+      "Vn": 69.0,
+      "p0": 0.076,
+      "q0": 0.016,
+      "u": 1.0
+    },
+    {
+      "idx": 5,
+      "name": "PQ 5",
+      "bus": 6,
+      "Vn": 138.0,
+      "p0": 0.112,
+      "q0": 0.075,
+      "u": 1.0
+    },
+    {
+      "idx": 6,
+      "name": "PQ 6",
+      "bus": 9,
+      "Vn": 138.0,
+      "p0": 0.295,
+      "q0": 0.166,
+      "u": 1.0
+    },
+    {
+      "idx": 7,
+      "name": "PQ 7",
+      "bus": 10,
+      "Vn": 138.0,
+      "p0": 0.09,
+      "q0": 0.058,
+      "u": 1.0
+    },
+    {
+      "idx": 8,
+      "name": "PQ 8",
+      "bus": 11,
+      "Vn": 138.0,
+      "p0": 0.035,
+      "q0": 0.018,
+      "u": 1.0
+    },
+    {
+      "idx": 9,
+      "name": "PQ 9",
+      "bus": 12,
+      "Vn": 138.0,
+      "p0": 0.061,
+      "q0": 0.016,
+      "u": 1.0
+    },
+    {
+      "idx": 10,
+      "name": "PQ 10",
+      "bus": 13,
+      "Vn": 138.0,
+      "p0": 0.135,
+      "q0": 0.058,
+      "u": 1.0
+    },
+    {
+      "idx": 11,
+      "name": "PQ 11",
+      "bus": 14,
+      "Vn": 138.0,
+      "p0": 0.149,
+      "q0": 0.05,
+      "u": 1.0
+    }
+  ],
+  "PV": [
+    {
+      "idx": 2,
+      "name": "PV 2",
+      "bus": 2,
+      "Vn": 69.0,
+      "Sn": 100.0,
+      "p0": 0.5,
+      "q0": 0.05,
+      "pmax": 1.0,
+      "pmin": 0.0,
+      "qmax": 0.5,
+      "qmin": -0.4,
+      "v0": 1.03,
+      "ra": 0.0,
+      "xs": 0.2
+    },
+    {
+      "idx": 3,
+      "name": "PV 3",
+      "bus": 3,
+      "Vn": 69.0,
+      "Sn": 100.0,
+      "p0": 0.5,
+      "q0": 0.05,
+      "pmax": 1.0,
+      "pmin": 0.0,
+      "qmax": 0.4,
+      "qmin": -0.4,
+      "v0": 1.01,
+      "ra": 0.0,
+      "xs": 0.2
+    },
+    {
+      "idx": 4,
+      "name": "PV 4",
+      "bus": 6,
+      "Vn": 138.0,
+      "Sn": 100.0,
+      "p0": 0.4,
+      "q0": 0.05,
+      "pmax": 1.0,
+      "pmin": 0.0,
+      "qmax": 0.24,
+      "qmin": -0.06,
+      "v0": 1.03,
+      "ra": 0.0,
+      "xs": 0.2
+    },
+    {
+      "idx": 5,
+      "name": "PV 5",
+      "bus": 8,
+      "Vn": 69.0,
+      "Sn": 100.0,
+      "p0": 0.35,
+      "q0": 0.05,
+      "pmax": 1.0,
+      "pmin": 0.0,
+      "qmax": 0.24,
+      "qmin": -0.06,
+      "v0": 1.03,
+      "ra": 0.0,
+      "xs": 0.2
+    }
+  ],
+  "Slack": [
+    {
+      "idx": 1,
+      "u": 1.0,
+      "name": "Slack 1",
+      "Sn": 100.0,
+      "Vn": 69.0,
+      "bus": 1,
+      "p0": 0.81442,
+      "q0": 0.01962,
+      "pmax": 2.0,
+      "pmin": 0.5,
+      "qmax": 1.0,
+      "qmin": -0.5,
+      "v0": 1.03,
+      "a0": 0.0,
+      "ra": 0.0,
+      "xs": 0.23
+    }
+  ],
+  "Line": [
+    {
+      "idx": "Line_1",
+      "u": 1.0,
+      "name": "Line_1",
+      "bus1": 1,
+      "bus2": 2,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 69.0,
+      "Vn2": 69.0,
+      "r": 0.01938,
+      "x": 0.05917,
+      "b": 0.0528,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 0.0,
+      "tap": 1.0,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_2",
+      "u": 1.0,
+      "name": "Line_2",
+      "bus1": 1,
+      "bus2": 5,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 69.0,
+      "Vn2": 69.0,
+      "r": 0.05403,
+      "x": 0.22304,
+      "b": 0.0492,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 0.0,
+      "tap": 1.0,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_3",
+      "u": 1.0,
+      "name": "Line_3",
+      "bus1": 2,
+      "bus2": 3,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 69.0,
+      "Vn2": 69.0,
+      "r": 0.04699,
+      "x": 0.19797,
+      "b": 0.0438,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 0.0,
+      "tap": 1.0,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_4",
+      "u": 1.0,
+      "name": "Line_4",
+      "bus1": 2,
+      "bus2": 4,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 69.0,
+      "Vn2": 69.0,
+      "r": 0.05811,
+      "x": 0.17632,
+      "b": 0.034,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 0.0,
+      "tap": 1.0,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_5",
+      "u": 1.0,
+      "name": "Line_5",
+      "bus1": 2,
+      "bus2": 5,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 69.0,
+      "Vn2": 69.0,
+      "r": 0.05695,
+      "x": 0.17388,
+      "b": 0.0346,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 0.0,
+      "tap": 1.0,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_6",
+      "u": 1.0,
+      "name": "Line_6",
+      "bus1": 3,
+      "bus2": 4,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 69.0,
+      "Vn2": 69.0,
+      "r": 0.06701,
+      "x": 0.17103,
+      "b": 0.0128,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 0.0,
+      "tap": 1.0,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_7",
+      "u": 1.0,
+      "name": "Line_7",
+      "bus1": 4,
+      "bus2": 5,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 69.0,
+      "Vn2": 69.0,
+      "r": 0.01335,
+      "x": 0.04211,
+      "b": 0.0,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 0.0,
+      "tap": 1.0,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_8",
+      "u": 1.0,
+      "name": "Line_8",
+      "bus1": 6,
+      "bus2": 11,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 138.0,
+      "Vn2": 138.0,
+      "r": 0.09498,
+      "x": 0.1989,
+      "b": 0.0,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 0.0,
+      "tap": 1.0,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_9",
+      "u": 1.0,
+      "name": "Line_9",
+      "bus1": 6,
+      "bus2": 12,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 138.0,
+      "Vn2": 138.0,
+      "r": 0.12291,
+      "x": 0.25581,
+      "b": 0.0,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 0.0,
+      "tap": 1.0,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_10",
+      "u": 1.0,
+      "name": "Line_10",
+      "bus1": 6,
+      "bus2": 13,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 138.0,
+      "Vn2": 138.0,
+      "r": 0.06615,
+      "x": 0.13027,
+      "b": 0.0,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 0.0,
+      "tap": 1.0,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_11",
+      "u": 1.0,
+      "name": "Line_11",
+      "bus1": 7,
+      "bus2": 9,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 138.0,
+      "Vn2": 138.0,
+      "r": 0.0,
+      "x": 0.11001,
+      "b": 0.0,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 0.0,
+      "tap": 1.0,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_12",
+      "u": 1.0,
+      "name": "Line_12",
+      "bus1": 9,
+      "bus2": 10,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 138.0,
+      "Vn2": 138.0,
+      "r": 0.03181,
+      "x": 0.0845,
+      "b": 0.0,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 0.0,
+      "tap": 1.0,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_13",
+      "u": 1.0,
+      "name": "Line_13",
+      "bus1": 9,
+      "bus2": 14,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 138.0,
+      "Vn2": 138.0,
+      "r": 0.12711,
+      "x": 0.27038,
+      "b": 0.0,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 0.0,
+      "tap": 1.0,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_14",
+      "u": 1.0,
+      "name": "Line_14",
+      "bus1": 10,
+      "bus2": 11,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 138.0,
+      "Vn2": 138.0,
+      "r": 0.08205,
+      "x": 0.19207,
+      "b": 0.0,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 0.0,
+      "tap": 1.0,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_15",
+      "u": 1.0,
+      "name": "Line_15",
+      "bus1": 12,
+      "bus2": 13,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 138.0,
+      "Vn2": 138.0,
+      "r": 0.22092,
+      "x": 0.19988,
+      "b": 0.0,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 0.0,
+      "tap": 1.0,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_16",
+      "u": 1.0,
+      "name": "Line_16",
+      "bus1": 13,
+      "bus2": 14,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 138.0,
+      "Vn2": 138.0,
+      "r": 0.17093,
+      "x": 0.34802,
+      "b": 0.0,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 0.0,
+      "tap": 1.0,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_17",
+      "u": 1.0,
+      "name": "Line_17",
+      "bus1": 4,
+      "bus2": 7,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 69.0,
+      "Vn2": 138.0,
+      "r": 0.0,
+      "x": 0.20912,
+      "b": 0.0,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 1.0,
+      "tap": 0.99677,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_18",
+      "u": 1.0,
+      "name": "Line_18",
+      "bus1": 4,
+      "bus2": 9,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 69.0,
+      "Vn2": 138.0,
+      "r": 0.0,
+      "x": 0.55618,
+      "b": 0.0,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 1.0,
+      "tap": 0.99677,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_19",
+      "u": 1.0,
+      "name": "Line_19",
+      "bus1": 6,
+      "bus2": 5,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 138.0,
+      "Vn2": 69.0,
+      "r": 0.0,
+      "x": 0.25202,
+      "b": 0.0,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 1.0,
+      "tap": 0.99677,
+      "phi": 0.0
+    },
+    {
+      "idx": "Line_20",
+      "u": 1.0,
+      "name": "Line_20",
+      "bus1": 8,
+      "bus2": 7,
+      "Sn": 100.0,
+      "fn": 60.0,
+      "Vn1": 69.0,
+      "Vn2": 138.0,
+      "r": 0.0,
+      "x": 0.17615,
+      "b": 0.0,
+      "g": 0.0,
+      "b1": 0.0,
+      "g1": 0.0,
+      "b2": 0.0,
+      "g2": 0.0,
+      "trans": 1.0,
+      "tap": 0.99677,
+      "phi": 0.0
+    }
+  ],
+  "components": {
+    "GENCLS_1": {
+      "type": "GENCLS",
+      "params": {
+        "idx": "GENCLS_1",
+        "u": 1.0,
+        "name": "GENCLS_1",
+        "bus": 1,
+        "gen": 1,
+        "Sn": 100.0,
+        "Vn": 69.0,
+        "fn": 60.0,
+        "D": 1.0,
+        "M": 10.0,
+        "ra": 0.003,
+        "xd1": 0.25,
+        "omega_b": "2.0 * M_PI * 60.0",
+        "H": 5.0,
+        "E_p": 1.0
+      }
+    },
+    "TGOV1_1": {
+      "type": "TGOV1",
+      "params": {
+        "idx": "TGOV1_1",
+        "u": 1.0,
+        "name": "TGOV1_1",
+        "syn": "GENCLS_1",
+        "wref0": 1.0,
+        "R": 0.05,
+        "Ki": 1.0,
+        "VMAX": 1.2,
+        "VMIN": 0.0,
+        "T1": 0.5,
+        "T2": 2.0,
+        "T3": 5.0,
+        "Dt": 0.0
+      }
+    },
+    "DFIG_PHS_1": {
+      "type": "DFIG_PHS",
+      "params": {
+        "idx": "DFIG_PHS_1",
+        "u": 1.0,
+        "name": "DFIG_PHS_1",
+        "bus": 2,
+        "gen": 2,
+        "Sn": 100.0,
+        "Vn": 69.0,
+        "fn": 60.0,
+        "Ls": 3.5,
+        "Lr": 3.5,
+        "Lm": 3.4,
+        "Rs": 0.01,
+        "Rr": 0.01,
+        "j_inertia": 1.0,
+        "f_damp": 0.2,
+        "np": 1,
+        "omega_b": 376.991,
+        "omega_s": 1.0
+      }
+    },
+    "DFIG_RSC_MPC_PHS_1": {
+      "type": "DFIG_RSC_MPC_PHS",
+      "params": {
+        "idx": "DFIG_RSC_MPC_PHS_1",
+        "u": 1.0,
+        "name": "DFIG_RSC_MPC_PHS_1",
+        "dfig": "DFIG_PHS_1",
+        "J": 5.0,
+        "Dp": 20.0,
+        "omega_N": 1.0,
+        "DQ": 0.05,
+        "kQs": 20.0,
+        "ki_P": 2.0,
+        "Lm": 3.4,
+        "Ls": 3.5,
+        "Lr": 3.5,
+        "Rs": 0.01,
+        "Rr": 0.01,
+        "np_poles": 1,
+        "j_inertia": 1.0,
+        "f_damp": 0.2,
+        "omega_s": 1.0,
+        "omega_b": 376.991,
+        "Vrd_max": 0.5,
+        "I_max": 1.2,
+        "V_nom": 1.0,
+        "alpha_V": 10.0,
+        "alpha_u": 0.1,
+        "alpha_omega": 5.0,
+        "alpha_volt": 5.0,
+        "alpha_tw": 150.0,
+        "dt_mpc": 0.0005,
+        "N_horizon": 3,
+        "alpha_Vf": 50.0,
+        "phi_sd_ss": 0.0,
+        "phi_sq_ss": 0.0,
+        "phi_rd_ss": 0.0,
+        "phi_rq_ss": 0.0,
+        "p_g_ss": 1.0,
+        "Vrd_ss": 0.0,
+        "Vrq_ss": 0.0,
+        "alpha_ff": 5.0,
+        "Jratio": 0.25,
+        "D_t": 0.05,
+        "tau_ff": 5.0,
+        "K_td": 0.0,
+        "K_ff": 0.0,
+        "K_shaft_dt": 0.5,
+        "D_shaft_dt": 1.5,
+        "Tm0_dt": 1.0,
+        "vw_nom_dt": 12.0
+      }
+    },
+    "DFIG_DCLink_PHS_1": {
+      "type": "DFIG_DCLINK_PHS",
+      "params": {
+        "idx": "DFIG_DCLink_PHS_1",
+        "u": 1.0,
+        "name": "DFIG_DCLink_PHS_1",
+        "C_dc": 1.0,
+        "Vdc_nom": 1.0,
+        "R_esr": 0.001
+      }
+    },
+    "DFIG_GSC_GFM_PHS_1": {
+      "type": "DFIG_GSC_GFM_PHS",
+      "params": {
+        "idx": "DFIG_GSC_GFM_PHS_1",
+        "u": 1.0,
+        "name": "DFIG_GSC_GFM_PHS_1",
+        "dfig": "DFIG_PHS_1",
+        "bus": 2,
+        "L_f": 0.15,
+        "R_f": 0.003,
+        "omega_s": 1.0,
+        "omega_b": 376.991,
+        "Kp_dc": 1.0,
+        "Ki_dc": 8.0,
+        "Kp_Qg": 0.5,
+        "Ki_Qg": 5.0,
+        "I_max": 0.8
+      }
+    },
+    "DFIG_DT_PHS_1": {
+      "type": "DFIG_DRIVETRAIN_PHS",
+      "params": {
+        "idx": "DFIG_DT_PHS_1",
+        "name": "DFIG_DT_PHS_1",
+        "dfig": "DFIG_PHS_1",
+        "H_t": 4.0,
+        "K_shaft": 0.5,
+        "D_shaft": 1.5,
+        "D_t": 0.05,
+        "k_cp": 2.0,
+        "gear_ratio": 1.0,
+        "vw_nom": 12.0
+      }
+    },
+    "DFIG_PHS_2": {
+      "type": "DFIG_PHS",
+      "params": {
+        "idx": "DFIG_PHS_2",
+        "u": 1.0,
+        "name": "DFIG_PHS_2",
+        "bus": 3,
+        "gen": 3,
+        "Sn": 100.0,
+        "Vn": 69.0,
+        "fn": 60.0,
+        "Ls": 3.5,
+        "Lr": 3.5,
+        "Lm": 3.4,
+        "Rs": 0.01,
+        "Rr": 0.01,
+        "j_inertia": 1.0,
+        "f_damp": 0.2,
+        "np": 1,
+        "omega_b": 376.991,
+        "omega_s": 1.0
+      }
+    },
+    "DFIG_RSC_MPC_PHS_2": {
+      "type": "DFIG_RSC_MPC_PHS",
+      "params": {
+        "idx": "DFIG_RSC_MPC_PHS_2",
+        "u": 1.0,
+        "name": "DFIG_RSC_MPC_PHS_2",
+        "dfig": "DFIG_PHS_2",
+        "J": 5.0,
+        "Dp": 20.0,
+        "omega_N": 1.0,
+        "DQ": 0.05,
+        "kQs": 20.0,
+        "ki_P": 2.0,
+        "Lm": 3.4,
+        "Ls": 3.5,
+        "Lr": 3.5,
+        "Rs": 0.01,
+        "Rr": 0.01,
+        "np_poles": 1,
+        "j_inertia": 1.0,
+        "f_damp": 0.2,
+        "omega_s": 1.0,
+        "omega_b": 376.991,
+        "Vrd_max": 0.5,
+        "I_max": 1.2,
+        "V_nom": 1.0,
+        "alpha_V": 10.0,
+        "alpha_u": 0.1,
+        "alpha_omega": 5.0,
+        "alpha_volt": 5.0,
+        "alpha_tw": 10.0,
+        "dt_mpc": 0.0005,
+        "N_horizon": 3,
+        "alpha_Vf": 50.0,
+        "phi_sd_ss": 0.0,
+        "phi_sq_ss": 0.0,
+        "phi_rd_ss": 0.0,
+        "phi_rq_ss": 0.0,
+        "p_g_ss": 1.0,
+        "Vrd_ss": 0.0,
+        "Vrq_ss": 0.0,
+        "alpha_ff": 0.0,
+        "Jratio": 0.25,
+        "D_t": 0.05,
+        "tau_ff": 2.0,
+        "K_td": 0.0,
+        "K_ff": 0.0,
+        "K_shaft_dt": 0.5,
+        "D_shaft_dt": 1.5,
+        "Tm0_dt": 1.0,
+        "vw_nom_dt": 12.0
+      }
+    },
+    "DFIG_DCLink_PHS_2": {
+      "type": "DFIG_DCLINK_PHS",
+      "params": {
+        "idx": "DFIG_DCLink_PHS_2",
+        "u": 1.0,
+        "name": "DFIG_DCLink_PHS_2",
+        "C_dc": 1.0,
+        "Vdc_nom": 1.0,
+        "R_esr": 0.001
+      }
+    },
+    "DFIG_GSC_GFM_PHS_2": {
+      "type": "DFIG_GSC_GFM_PHS",
+      "params": {
+        "idx": "DFIG_GSC_GFM_PHS_2",
+        "u": 1.0,
+        "name": "DFIG_GSC_GFM_PHS_2",
+        "dfig": "DFIG_PHS_2",
+        "bus": 3,
+        "L_f": 0.15,
+        "R_f": 0.003,
+        "omega_s": 1.0,
+        "omega_b": 376.991,
+        "Kp_dc": 1.0,
+        "Ki_dc": 8.0,
+        "Kp_Qg": 0.5,
+        "Ki_Qg": 5.0,
+        "I_max": 0.8
+      }
+    },
+    "DFIG_DT_PHS_2": {
+      "type": "DFIG_DRIVETRAIN_PHS",
+      "params": {
+        "idx": "DFIG_DT_PHS_2",
+        "name": "DFIG_DT_PHS_2",
+        "dfig": "DFIG_PHS_2",
+        "K_shaft": 0.5,
+        "D_shaft": 1.5,
+        "D_t": 0.05,
+        "k_cp": 2.0,
+        "gear_ratio": 1.0,
+        "vw_nom": 12.0,
+        "H_t": 4.0
+      }
+    },
+    "DFIG_PHS_3": {
+      "type": "DFIG_PHS",
+      "params": {
+        "idx": "DFIG_PHS_3",
+        "u": 1.0,
+        "name": "DFIG_PHS_3",
+        "bus": 6,
+        "gen": 4,
+        "Sn": 100.0,
+        "Vn": 138.0,
+        "fn": 60.0,
+        "Ls": 3.5,
+        "Lr": 3.5,
+        "Lm": 3.4,
+        "Rs": 0.01,
+        "Rr": 0.01,
+        "j_inertia": 1.0,
+        "f_damp": 0.2,
+        "np": 1,
+        "omega_b": 376.991,
+        "omega_s": 1.0
+      }
+    },
+    "DFIG_RSC_MPC_PHS_3": {
+      "type": "DFIG_RSC_MPC_PHS",
+      "params": {
+        "idx": "DFIG_RSC_MPC_PHS_3",
+        "u": 1.0,
+        "name": "DFIG_RSC_MPC_PHS_3",
+        "dfig": "DFIG_PHS_3",
+        "J": 5.0,
+        "Dp": 20.0,
+        "omega_N": 1.0,
+        "DQ": 0.05,
+        "kQs": 20.0,
+        "ki_P": 2.0,
+        "Lm": 3.4,
+        "Ls": 3.5,
+        "Lr": 3.5,
+        "Rs": 0.01,
+        "Rr": 0.01,
+        "np_poles": 1,
+        "j_inertia": 1.0,
+        "f_damp": 0.2,
+        "omega_s": 1.0,
+        "omega_b": 376.991,
+        "Vrd_max": 0.5,
+        "I_max": 1.2,
+        "V_nom": 1.0,
+        "alpha_V": 10.0,
+        "alpha_u": 0.1,
+        "alpha_omega": 5.0,
+        "alpha_volt": 5.0,
+        "alpha_tw": 10.0,
+        "dt_mpc": 0.0005,
+        "N_horizon": 3,
+        "alpha_Vf": 50.0,
+        "phi_sd_ss": 0.0,
+        "phi_sq_ss": 0.0,
+        "phi_rd_ss": 0.0,
+        "phi_rq_ss": 0.0,
+        "p_g_ss": 1.0,
+        "Vrd_ss": 0.0,
+        "Vrq_ss": 0.0,
+        "alpha_ff": 0.0,
+        "Jratio": 0.25,
+        "D_t": 0.05,
+        "tau_ff": 2.0,
+        "K_td": 0.0,
+        "K_ff": 0.0,
+        "K_shaft_dt": 0.5,
+        "D_shaft_dt": 1.5,
+        "Tm0_dt": 1.0,
+        "vw_nom_dt": 12.0
+      }
+    },
+    "DFIG_DCLink_PHS_3": {
+      "type": "DFIG_DCLINK_PHS",
+      "params": {
+        "idx": "DFIG_DCLink_PHS_3",
+        "u": 1.0,
+        "name": "DFIG_DCLink_PHS_3",
+        "C_dc": 1.0,
+        "Vdc_nom": 1.0,
+        "R_esr": 0.001
+      }
+    },
+    "DFIG_GSC_GFM_PHS_3": {
+      "type": "DFIG_GSC_GFM_PHS",
+      "params": {
+        "idx": "DFIG_GSC_GFM_PHS_3",
+        "u": 1.0,
+        "name": "DFIG_GSC_GFM_PHS_3",
+        "dfig": "DFIG_PHS_3",
+        "bus": 6,
+        "L_f": 0.15,
+        "R_f": 0.003,
+        "omega_s": 1.0,
+        "omega_b": 376.991,
+        "Kp_dc": 1.0,
+        "Ki_dc": 8.0,
+        "Kp_Qg": 0.5,
+        "Ki_Qg": 5.0,
+        "I_max": 0.8
+      }
+    },
+    "DFIG_DT_PHS_3": {
+      "type": "DFIG_DRIVETRAIN_PHS",
+      "params": {
+        "idx": "DFIG_DT_PHS_3",
+        "name": "DFIG_DT_PHS_3",
+        "dfig": "DFIG_PHS_3",
+        "K_shaft": 0.5,
+        "D_shaft": 1.5,
+        "D_t": 0.05,
+        "k_cp": 2.0,
+        "gear_ratio": 1.0,
+        "vw_nom": 12.0,
+        "H_t": 4.0
+      }
+    },
+    "DFIG_PHS_4": {
+      "type": "DFIG_PHS",
+      "params": {
+        "idx": "DFIG_PHS_4",
+        "u": 1.0,
+        "name": "DFIG_PHS_4",
+        "bus": 8,
+        "gen": 5,
+        "Sn": 100.0,
+        "Vn": 69.0,
+        "fn": 60.0,
+        "Ls": 3.5,
+        "Lr": 3.5,
+        "Lm": 3.4,
+        "Rs": 0.01,
+        "Rr": 0.01,
+        "j_inertia": 1.0,
+        "f_damp": 0.2,
+        "np": 1,
+        "omega_b": 376.991,
+        "omega_s": 1.0
+      }
+    },
+    "DFIG_RSC_MPC_PHS_4": {
+      "type": "DFIG_RSC_MPC_PHS",
+      "params": {
+        "idx": "DFIG_RSC_MPC_PHS_4",
+        "u": 1.0,
+        "name": "DFIG_RSC_MPC_PHS_4",
+        "dfig": "DFIG_PHS_4",
+        "J": 5.0,
+        "Dp": 20.0,
+        "omega_N": 1.0,
+        "DQ": 0.05,
+        "kQs": 20.0,
+        "ki_P": 2.0,
+        "Lm": 3.4,
+        "Ls": 3.5,
+        "Lr": 3.5,
+        "Rs": 0.01,
+        "Rr": 0.01,
+        "np_poles": 1,
+        "j_inertia": 1.0,
+        "f_damp": 0.2,
+        "omega_s": 1.0,
+        "omega_b": 376.991,
+        "Vrd_max": 0.5,
+        "I_max": 1.2,
+        "V_nom": 1.0,
+        "alpha_V": 10.0,
+        "alpha_u": 0.1,
+        "alpha_omega": 5.0,
+        "alpha_volt": 5.0,
+        "alpha_tw": 10.0,
+        "dt_mpc": 0.0005,
+        "N_horizon": 3,
+        "alpha_Vf": 50.0,
+        "phi_sd_ss": 0.0,
+        "phi_sq_ss": 0.0,
+        "phi_rd_ss": 0.0,
+        "phi_rq_ss": 0.0,
+        "p_g_ss": 1.0,
+        "Vrd_ss": 0.0,
+        "Vrq_ss": 0.0,
+        "alpha_ff": 0.0,
+        "Jratio": 0.25,
+        "D_t": 0.05,
+        "tau_ff": 2.0,
+        "K_td": 0.0,
+        "K_ff": 0.0,
+        "K_shaft_dt": 0.5,
+        "D_shaft_dt": 1.5,
+        "Tm0_dt": 1.0,
+        "vw_nom_dt": 12.0
+      }
+    },
+    "DFIG_DCLink_PHS_4": {
+      "type": "DFIG_DCLINK_PHS",
+      "params": {
+        "idx": "DFIG_DCLink_PHS_4",
+        "u": 1.0,
+        "name": "DFIG_DCLink_PHS_4",
+        "C_dc": 1.0,
+        "Vdc_nom": 1.0,
+        "R_esr": 0.001
+      }
+    },
+    "DFIG_GSC_GFM_PHS_4": {
+      "type": "DFIG_GSC_GFM_PHS",
+      "params": {
+        "idx": "DFIG_GSC_GFM_PHS_4",
+        "u": 1.0,
+        "name": "DFIG_GSC_GFM_PHS_4",
+        "dfig": "DFIG_PHS_4",
+        "bus": 8,
+        "L_f": 0.15,
+        "R_f": 0.003,
+        "omega_s": 1.0,
+        "omega_b": 376.991,
+        "Kp_dc": 1.0,
+        "Ki_dc": 8.0,
+        "Kp_Qg": 0.5,
+        "Ki_Qg": 5.0,
+        "I_max": 0.8
+      }
+    },
+    "DFIG_DT_PHS_4": {
+      "type": "DFIG_DRIVETRAIN_PHS",
+      "params": {
+        "idx": "DFIG_DT_PHS_4",
+        "name": "DFIG_DT_PHS_4",
+        "dfig": "DFIG_PHS_4",
+        "K_shaft": 0.5,
+        "D_shaft": 1.5,
+        "D_t": 0.05,
+        "k_cp": 2.0,
+        "gear_ratio": 1.0,
+        "vw_nom": 12.0,
+        "H_t": 4.0
+      }
+    },
+    "WIND_1": {
+      "type": "WIND_FILE",
+      "params": {
+        "idx": "WIND_1",
+        "name": "WIND_1",
+        "profile_file": "cases/DFIG_PHS/wind_gust_profile.txt"
+      }
+    },
+    "WIND_2": {
+      "type": "WIND_FILE",
+      "params": {
+        "idx": "WIND_2",
+        "name": "WIND_2",
+        "profile_file": "cases/DFIG_PHS/wind_constant_12.txt"
+      }
+    },
+    "WIND_3": {
+      "type": "WIND_FILE",
+      "params": {
+        "idx": "WIND_3",
+        "name": "WIND_3",
+        "profile_file": "cases/DFIG_PHS/wind_constant_12.txt"
+      }
+    },
+    "WIND_4": {
+      "type": "WIND_FILE",
+      "params": {
+        "idx": "WIND_4",
+        "name": "WIND_4",
+        "profile_file": "cases/DFIG_PHS/wind_constant_12.txt"
+      }
+    },
+    "WIND_PRED_1": {
+      "type": "WIND_FILE",
+      "params": {
+        "idx": "WIND_PRED_1",
+        "name": "WIND_PRED_1",
+        "profile_file": "cases/DFIG_PHS/wind_gust_predicted.txt"
+      }
+    },
+    "WIND_PRED_2": {
+      "type": "WIND_FILE",
+      "params": {
+        "idx": "WIND_PRED_2",
+        "name": "WIND_PRED_2",
+        "profile_file": "cases/DFIG_PHS/wind_constant_12.txt"
+      }
+    },
+    "WIND_PRED_3": {
+      "type": "WIND_FILE",
+      "params": {
+        "idx": "WIND_PRED_3",
+        "name": "WIND_PRED_3",
+        "profile_file": "cases/DFIG_PHS/wind_constant_12.txt"
+      }
+    },
+    "WIND_PRED_4": {
+      "type": "WIND_FILE",
+      "params": {
+        "idx": "WIND_PRED_4",
+        "name": "WIND_PRED_4",
+        "profile_file": "cases/DFIG_PHS/wind_constant_12.txt"
+      }
+    }
+  },
+  "connections": [
+    {
+      "from": "TGOV1_1.Tm",
+      "to": "GENCLS_1.Tm"
+    },
+    {
+      "from": "BUS_1.Vd",
+      "to": "GENCLS_1.Vd"
+    },
+    {
+      "from": "BUS_1.Vq",
+      "to": "GENCLS_1.Vq"
+    },
+    {
+      "from": "GENCLS_1.omega",
+      "to": "TGOV1_1.omega"
+    },
+    {
+      "from": "CONST:1.0",
+      "to": "TGOV1_1.Pref"
+    },
+    {
+      "from": "BUS_2.Vd",
+      "to": "DFIG_PHS_1.Vd"
+    },
+    {
+      "from": "BUS_2.Vq",
+      "to": "DFIG_PHS_1.Vq"
+    },
+    {
+      "from": "DFIG_RSC_MPC_PHS_1.Vrd",
+      "to": "DFIG_PHS_1.Vrd"
+    },
+    {
+      "from": "DFIG_RSC_MPC_PHS_1.Vrq",
+      "to": "DFIG_PHS_1.Vrq"
+    },
+    {
+      "from": "DFIG_DT_PHS_1.T_gen",
+      "to": "DFIG_PHS_1.Tm"
+    },
+    {
+      "from": "DFIG_PHS_1.i_rd",
+      "to": "DFIG_RSC_MPC_PHS_1.ird"
+    },
+    {
+      "from": "DFIG_PHS_1.i_rq",
+      "to": "DFIG_RSC_MPC_PHS_1.iqr"
+    },
+    {
+      "from": "DFIG_PHS_1.omega",
+      "to": "DFIG_RSC_MPC_PHS_1.omega_r"
+    },
+    {
+      "from": "DFIG_PHS_1.phi_sd_out",
+      "to": "DFIG_RSC_MPC_PHS_1.phi_sd"
+    },
+    {
+      "from": "DFIG_PHS_1.phi_sq_out",
+      "to": "DFIG_RSC_MPC_PHS_1.phi_sq"
+    },
+    {
+      "from": "DFIG_RSC_MPC_PHS_1.P_rotor",
+      "to": "DFIG_DCLink_PHS_1.P_rsc"
+    },
+    {
+      "from": "DFIG_GSC_GFM_PHS_1.P_gsc",
+      "to": "DFIG_DCLink_PHS_1.P_gsc"
+    },
+    {
+      "from": "DFIG_DCLink_PHS_1.Vdc",
+      "to": "DFIG_GSC_GFM_PHS_1.Vdc"
+    },
+    {
+      "from": "CONST:1.0",
+      "to": "DFIG_GSC_GFM_PHS_1.Vdc_ref"
+    },
+    {
+      "from": "CONST:0.0",
+      "to": "DFIG_GSC_GFM_PHS_1.Qref"
+    },
+    {
+      "from": "BUS_2.Vd",
+      "to": "DFIG_GSC_GFM_PHS_1.Vd"
+    },
+    {
+      "from": "BUS_2.Vq",
+      "to": "DFIG_GSC_GFM_PHS_1.Vq"
+    },
+    {
+      "from": "DFIG_PHS_1.omega",
+      "to": "DFIG_DT_PHS_1.omega_g"
+    },
+    {
+      "from": "WIND_1.vw",
+      "to": "DFIG_DT_PHS_1.V_w"
+    },
+    {
+      "from": "CONST:0.0",
+      "to": "DFIG_DT_PHS_1.beta"
+    },
+    {
+      "from": "BUS_3.Vd",
+      "to": "DFIG_PHS_2.Vd"
+    },
+    {
+      "from": "BUS_3.Vq",
+      "to": "DFIG_PHS_2.Vq"
+    },
+    {
+      "from": "DFIG_RSC_MPC_PHS_2.Vrd",
+      "to": "DFIG_PHS_2.Vrd"
+    },
+    {
+      "from": "DFIG_RSC_MPC_PHS_2.Vrq",
+      "to": "DFIG_PHS_2.Vrq"
+    },
+    {
+      "from": "DFIG_DT_PHS_2.T_gen",
+      "to": "DFIG_PHS_2.Tm"
+    },
+    {
+      "from": "DFIG_PHS_2.i_rd",
+      "to": "DFIG_RSC_MPC_PHS_2.ird"
+    },
+    {
+      "from": "DFIG_PHS_2.i_rq",
+      "to": "DFIG_RSC_MPC_PHS_2.iqr"
+    },
+    {
+      "from": "DFIG_PHS_2.omega",
+      "to": "DFIG_RSC_MPC_PHS_2.omega_r"
+    },
+    {
+      "from": "DFIG_PHS_2.phi_sd_out",
+      "to": "DFIG_RSC_MPC_PHS_2.phi_sd"
+    },
+    {
+      "from": "DFIG_PHS_2.phi_sq_out",
+      "to": "DFIG_RSC_MPC_PHS_2.phi_sq"
+    },
+    {
+      "from": "DFIG_RSC_MPC_PHS_2.P_rotor",
+      "to": "DFIG_DCLink_PHS_2.P_rsc"
+    },
+    {
+      "from": "DFIG_GSC_GFM_PHS_2.P_gsc",
+      "to": "DFIG_DCLink_PHS_2.P_gsc"
+    },
+    {
+      "from": "DFIG_DCLink_PHS_2.Vdc",
+      "to": "DFIG_GSC_GFM_PHS_2.Vdc"
+    },
+    {
+      "from": "CONST:1.0",
+      "to": "DFIG_GSC_GFM_PHS_2.Vdc_ref"
+    },
+    {
+      "from": "CONST:0.0",
+      "to": "DFIG_GSC_GFM_PHS_2.Qref"
+    },
+    {
+      "from": "BUS_3.Vd",
+      "to": "DFIG_GSC_GFM_PHS_2.Vd"
+    },
+    {
+      "from": "BUS_3.Vq",
+      "to": "DFIG_GSC_GFM_PHS_2.Vq"
+    },
+    {
+      "from": "DFIG_PHS_2.omega",
+      "to": "DFIG_DT_PHS_2.omega_g"
+    },
+    {
+      "from": "CONST:12.0",
+      "to": "DFIG_DT_PHS_2.V_w"
+    },
+    {
+      "from": "CONST:0.0",
+      "to": "DFIG_DT_PHS_2.beta"
+    },
+    {
+      "from": "BUS_6.Vd",
+      "to": "DFIG_PHS_3.Vd"
+    },
+    {
+      "from": "BUS_6.Vq",
+      "to": "DFIG_PHS_3.Vq"
+    },
+    {
+      "from": "DFIG_RSC_MPC_PHS_3.Vrd",
+      "to": "DFIG_PHS_3.Vrd"
+    },
+    {
+      "from": "DFIG_RSC_MPC_PHS_3.Vrq",
+      "to": "DFIG_PHS_3.Vrq"
+    },
+    {
+      "from": "DFIG_DT_PHS_3.T_gen",
+      "to": "DFIG_PHS_3.Tm"
+    },
+    {
+      "from": "DFIG_PHS_3.i_rd",
+      "to": "DFIG_RSC_MPC_PHS_3.ird"
+    },
+    {
+      "from": "DFIG_PHS_3.i_rq",
+      "to": "DFIG_RSC_MPC_PHS_3.iqr"
+    },
+    {
+      "from": "DFIG_PHS_3.omega",
+      "to": "DFIG_RSC_MPC_PHS_3.omega_r"
+    },
+    {
+      "from": "DFIG_PHS_3.phi_sd_out",
+      "to": "DFIG_RSC_MPC_PHS_3.phi_sd"
+    },
+    {
+      "from": "DFIG_PHS_3.phi_sq_out",
+      "to": "DFIG_RSC_MPC_PHS_3.phi_sq"
+    },
+    {
+      "from": "DFIG_RSC_MPC_PHS_3.P_rotor",
+      "to": "DFIG_DCLink_PHS_3.P_rsc"
+    },
+    {
+      "from": "DFIG_GSC_GFM_PHS_3.P_gsc",
+      "to": "DFIG_DCLink_PHS_3.P_gsc"
+    },
+    {
+      "from": "DFIG_DCLink_PHS_3.Vdc",
+      "to": "DFIG_GSC_GFM_PHS_3.Vdc"
+    },
+    {
+      "from": "CONST:1.0",
+      "to": "DFIG_GSC_GFM_PHS_3.Vdc_ref"
+    },
+    {
+      "from": "CONST:0.0",
+      "to": "DFIG_GSC_GFM_PHS_3.Qref"
+    },
+    {
+      "from": "BUS_6.Vd",
+      "to": "DFIG_GSC_GFM_PHS_3.Vd"
+    },
+    {
+      "from": "BUS_6.Vq",
+      "to": "DFIG_GSC_GFM_PHS_3.Vq"
+    },
+    {
+      "from": "DFIG_PHS_3.omega",
+      "to": "DFIG_DT_PHS_3.omega_g"
+    },
+    {
+      "from": "CONST:12.0",
+      "to": "DFIG_DT_PHS_3.V_w"
+    },
+    {
+      "from": "CONST:0.0",
+      "to": "DFIG_DT_PHS_3.beta"
+    },
+    {
+      "from": "BUS_8.Vd",
+      "to": "DFIG_PHS_4.Vd"
+    },
+    {
+      "from": "BUS_8.Vq",
+      "to": "DFIG_PHS_4.Vq"
+    },
+    {
+      "from": "DFIG_RSC_MPC_PHS_4.Vrd",
+      "to": "DFIG_PHS_4.Vrd"
+    },
+    {
+      "from": "DFIG_RSC_MPC_PHS_4.Vrq",
+      "to": "DFIG_PHS_4.Vrq"
+    },
+    {
+      "from": "DFIG_DT_PHS_4.T_gen",
+      "to": "DFIG_PHS_4.Tm"
+    },
+    {
+      "from": "DFIG_PHS_4.i_rd",
+      "to": "DFIG_RSC_MPC_PHS_4.ird"
+    },
+    {
+      "from": "DFIG_PHS_4.i_rq",
+      "to": "DFIG_RSC_MPC_PHS_4.iqr"
+    },
+    {
+      "from": "DFIG_PHS_4.omega",
+      "to": "DFIG_RSC_MPC_PHS_4.omega_r"
+    },
+    {
+      "from": "DFIG_PHS_4.phi_sd_out",
+      "to": "DFIG_RSC_MPC_PHS_4.phi_sd"
+    },
+    {
+      "from": "DFIG_PHS_4.phi_sq_out",
+      "to": "DFIG_RSC_MPC_PHS_4.phi_sq"
+    },
+    {
+      "from": "DFIG_RSC_MPC_PHS_4.P_rotor",
+      "to": "DFIG_DCLink_PHS_4.P_rsc"
+    },
+    {
+      "from": "DFIG_GSC_GFM_PHS_4.P_gsc",
+      "to": "DFIG_DCLink_PHS_4.P_gsc"
+    },
+    {
+      "from": "DFIG_DCLink_PHS_4.Vdc",
+      "to": "DFIG_GSC_GFM_PHS_4.Vdc"
+    },
+    {
+      "from": "CONST:1.0",
+      "to": "DFIG_GSC_GFM_PHS_4.Vdc_ref"
+    },
+    {
+      "from": "CONST:0.0",
+      "to": "DFIG_GSC_GFM_PHS_4.Qref"
+    },
+    {
+      "from": "BUS_8.Vd",
+      "to": "DFIG_GSC_GFM_PHS_4.Vd"
+    },
+    {
+      "from": "BUS_8.Vq",
+      "to": "DFIG_GSC_GFM_PHS_4.Vq"
+    },
+    {
+      "from": "DFIG_PHS_4.omega",
+      "to": "DFIG_DT_PHS_4.omega_g"
+    },
+    {
+      "from": "CONST:12.0",
+      "to": "DFIG_DT_PHS_4.V_w"
+    },
+    {
+      "from": "CONST:0.0",
+      "to": "DFIG_DT_PHS_4.beta"
+    },
+    {
+      "from": "CONST:0.5",
+      "to": "DFIG_RSC_MPC_PHS_1.P_star"
+    },
+    {
+      "from": "CONST:0.26",
+      "to": "DFIG_RSC_MPC_PHS_1.Q_star"
+    },
+    {
+      "from": "DFIG_PHS_1.Pe",
+      "to": "DFIG_RSC_MPC_PHS_1.Ps"
+    },
+    {
+      "from": "DFIG_PHS_1.Qe",
+      "to": "DFIG_RSC_MPC_PHS_1.Qs"
+    },
+    {
+      "from": "BUS_2.Vd",
+      "to": "DFIG_RSC_MPC_PHS_1.vds"
+    },
+    {
+      "from": "BUS_2.Vq",
+      "to": "DFIG_RSC_MPC_PHS_1.vqs"
+    },
+    {
+      "from": "DFIG_RSC_MPC_PHS_1.theta_s",
+      "to": "DFIG_GSC_GFM_PHS_1.theta_s"
+    },
+    {
+      "from": "CONST:0.5",
+      "to": "DFIG_RSC_MPC_PHS_2.P_star"
+    },
+    {
+      "from": "CONST:0.16",
+      "to": "DFIG_RSC_MPC_PHS_2.Q_star"
+    },
+    {
+      "from": "DFIG_PHS_2.Pe",
+      "to": "DFIG_RSC_MPC_PHS_2.Ps"
+    },
+    {
+      "from": "DFIG_PHS_2.Qe",
+      "to": "DFIG_RSC_MPC_PHS_2.Qs"
+    },
+    {
+      "from": "BUS_3.Vd",
+      "to": "DFIG_RSC_MPC_PHS_2.vds"
+    },
+    {
+      "from": "BUS_3.Vq",
+      "to": "DFIG_RSC_MPC_PHS_2.vqs"
+    },
+    {
+      "from": "DFIG_RSC_MPC_PHS_2.theta_s",
+      "to": "DFIG_GSC_GFM_PHS_2.theta_s"
+    },
+    {
+      "from": "CONST:0.4",
+      "to": "DFIG_RSC_MPC_PHS_3.P_star"
+    },
+    {
+      "from": "CONST:0.32",
+      "to": "DFIG_RSC_MPC_PHS_3.Q_star"
+    },
+    {
+      "from": "DFIG_PHS_3.Pe",
+      "to": "DFIG_RSC_MPC_PHS_3.Ps"
+    },
+    {
+      "from": "DFIG_PHS_3.Qe",
+      "to": "DFIG_RSC_MPC_PHS_3.Qs"
+    },
+    {
+      "from": "BUS_6.Vd",
+      "to": "DFIG_RSC_MPC_PHS_3.vds"
+    },
+    {
+      "from": "BUS_6.Vq",
+      "to": "DFIG_RSC_MPC_PHS_3.vqs"
+    },
+    {
+      "from": "DFIG_RSC_MPC_PHS_3.theta_s",
+      "to": "DFIG_GSC_GFM_PHS_3.theta_s"
+    },
+    {
+      "from": "CONST:0.35",
+      "to": "DFIG_RSC_MPC_PHS_4.P_star"
+    },
+    {
+      "from": "CONST:0.15",
+      "to": "DFIG_RSC_MPC_PHS_4.Q_star"
+    },
+    {
+      "from": "DFIG_PHS_4.Pe",
+      "to": "DFIG_RSC_MPC_PHS_4.Ps"
+    },
+    {
+      "from": "DFIG_PHS_4.Qe",
+      "to": "DFIG_RSC_MPC_PHS_4.Qs"
+    },
+    {
+      "from": "BUS_8.Vd",
+      "to": "DFIG_RSC_MPC_PHS_4.vds"
+    },
+    {
+      "from": "BUS_8.Vq",
+      "to": "DFIG_RSC_MPC_PHS_4.vqs"
+    },
+    {
+      "from": "DFIG_RSC_MPC_PHS_4.theta_s",
+      "to": "DFIG_GSC_GFM_PHS_4.theta_s"
+    },
+    {
+      "from": "DFIG_DT_PHS_1.omega_t",
+      "to": "DFIG_RSC_MPC_PHS_1.omega_t"
+    },
+    {
+      "from": "DFIG_DT_PHS_1.theta_out",
+      "to": "DFIG_RSC_MPC_PHS_1.theta_tw"
+    },
+    {
+      "from": "DFIG_DT_PHS_2.omega_t",
+      "to": "DFIG_RSC_MPC_PHS_2.omega_t"
+    },
+    {
+      "from": "DFIG_DT_PHS_2.theta_out",
+      "to": "DFIG_RSC_MPC_PHS_2.theta_tw"
+    },
+    {
+      "from": "DFIG_DT_PHS_3.omega_t",
+      "to": "DFIG_RSC_MPC_PHS_3.omega_t"
+    },
+    {
+      "from": "DFIG_DT_PHS_3.theta_out",
+      "to": "DFIG_RSC_MPC_PHS_3.theta_tw"
+    },
+    {
+      "from": "DFIG_DT_PHS_4.omega_t",
+      "to": "DFIG_RSC_MPC_PHS_4.omega_t"
+    },
+    {
+      "from": "DFIG_DT_PHS_4.theta_out",
+      "to": "DFIG_RSC_MPC_PHS_4.theta_tw"
+    },
+    {
+      "from": "DFIG_DT_PHS_1.T_aero",
+      "to": "DFIG_RSC_MPC_PHS_1.T_aero"
+    },
+    {
+      "from": "DFIG_DT_PHS_2.T_aero",
+      "to": "DFIG_RSC_MPC_PHS_2.T_aero"
+    },
+    {
+      "from": "DFIG_DT_PHS_3.T_aero",
+      "to": "DFIG_RSC_MPC_PHS_3.T_aero"
+    },
+    {
+      "from": "DFIG_DT_PHS_4.T_aero",
+      "to": "DFIG_RSC_MPC_PHS_4.T_aero"
+    },
+    {
+      "from": "DFIG_DT_PHS_1.T_gen",
+      "to": "DFIG_RSC_MPC_PHS_1.T_shaft"
+    },
+    {
+      "from": "DFIG_DT_PHS_2.T_gen",
+      "to": "DFIG_RSC_MPC_PHS_2.T_shaft"
+    },
+    {
+      "from": "DFIG_DT_PHS_3.T_gen",
+      "to": "DFIG_RSC_MPC_PHS_3.T_shaft"
+    },
+    {
+      "from": "DFIG_DT_PHS_4.T_gen",
+      "to": "DFIG_RSC_MPC_PHS_4.T_shaft"
+    },
+    {
+      "from": "WIND_PRED_1.vw",
+      "to": "DFIG_RSC_MPC_PHS_1.vw_pred"
+    },
+    {
+      "from": "WIND_PRED_2.vw",
+      "to": "DFIG_RSC_MPC_PHS_2.vw_pred"
+    },
+    {
+      "from": "WIND_PRED_3.vw",
+      "to": "DFIG_RSC_MPC_PHS_3.vw_pred"
+    },
+    {
+      "from": "WIND_PRED_4.vw",
+      "to": "DFIG_RSC_MPC_PHS_4.vw_pred"
+    }
+  ]
+}

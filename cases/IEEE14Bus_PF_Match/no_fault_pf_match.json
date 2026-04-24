@@ -1,0 +1,61 @@
+{
+  "description": "IEEE 14-Bus DAE (IDA) — PF-matched parameters, NO FAULT (equilibrium test)",
+  "system": "system_pf_match.json",
+
+  "solver": {
+    "method": "ida",
+    "dt": 0.0005,
+    "duration": 15.0
+  },
+
+  "warm_start": {
+    "csv": "../../outputs/IEEE14Bus_pfmatch_fault/warmstart_pf.csv",
+    "t": 0.0,
+    "delta_unwrap": {},
+    "omega_override": 1.0
+  },
+
+  "events": [],
+
+  "output": {
+    "directory": "outputs/IEEE14Bus_pfmatch_nofault"
+  },
+
+  "plots": [
+    {
+      "title": "Terminal Voltages",
+      "y_label": "Vterm [pu]",
+      "signals": [
+        { "pattern": "Vterm_Bus*" }
+      ]
+    },
+    {
+      "title": "Rotor Speeds",
+      "y_label": "ω [pu]",
+      "signals": [
+        { "pattern": "GENROU*omega" }
+      ]
+    },
+    {
+      "title": "Active Power",
+      "y_label": "Pe [pu]",
+      "signals": [
+        { "pattern": "GENROU*Pe" }
+      ]
+    },
+    {
+      "title": "Reactive Power",
+      "y_label": "Qe [pu]",
+      "signals": [
+        { "pattern": "GENROU*Qe" }
+      ]
+    },
+    {
+      "title": "Rotor Angles (deg)",
+      "y_label": "δ [deg]",
+      "signals": [
+        { "pattern": "GENROU*delta_deg" }
+      ]
+    }
+  ]
+}

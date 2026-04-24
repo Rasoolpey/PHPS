@@ -1,0 +1,49 @@
+{
+  "description": "IEEE 14-Bus Python scipy Radau — PHS models, 3-phase fault at Bus 4",
+  "system": "system_phs.json",
+
+  "solver": {
+    "method": "scipy",
+    "dt": 0.0005,
+    "duration": 15.0
+  },
+
+  "events": [
+    {
+      "type": "BusFault",
+      "bus": 4,
+      "r": 0.0001,
+      "x": 0.0001,
+      "t_start": 2.0,
+      "t_duration": 0.15
+    }
+  ],
+
+  "output": {
+    "directory": "outputs/IEEE14Bus_phs_scipy"
+  },
+
+  "plots": [
+    {
+      "title": "Terminal Voltages",
+      "y_label": "Vterm [pu]",
+      "signals": [
+        { "pattern": "Vterm_Bus*" }
+      ]
+    },
+    {
+      "title": "Rotor Angles",
+      "y_label": "δ [rad]",
+      "signals": [
+        { "pattern": "GENROU*delta" }
+      ]
+    },
+    {
+      "title": "Rotor Speeds",
+      "y_label": "ω [pu]",
+      "signals": [
+        { "pattern": "GENROU*omega" }
+      ]
+    }
+  ]
+}

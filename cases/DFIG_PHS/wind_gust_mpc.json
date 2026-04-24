@@ -1,0 +1,132 @@
+{
+  "description": "IEEE 14-bus DFIG MPC-PHS — Wind gust with predictive torsional damping",
+  "system": "cases/DFIG_PHS/ieee14_dfig_mpc_wind.json",
+  "solver": {
+    "dt": 0.0005,
+    "duration": 60.0,
+    "method": "bdf1"
+  },
+  "output": {
+    "directory": "outputs/DFIG_MPC_wind"
+  },
+  "events": [],
+  "plots": [
+    {
+      "title": "Terminal Voltages",
+      "y_label": "Vterm [pu]",
+      "signals": [
+        {
+          "pattern": "Vterm_Bus*"
+        }
+      ]
+    },
+    {
+      "title": "Grid Frequency (GENCLS)",
+      "y_label": "\u03c9 [pu]",
+      "signals": [
+        {
+          "pattern": "GENCLS_1.omega"
+        }
+      ]
+    },
+    {
+      "title": "DFIG Generator Speeds",
+      "y_label": "\u03c9_g [pu]",
+      "signals": [
+        {
+          "pattern": "DFIG_PHS_*.omega_pu"
+        }
+      ]
+    },
+    {
+      "title": "DFIG Active Power",
+      "y_label": "Pe [pu]",
+      "signals": [
+        {
+          "pattern": "DFIG_PHS_*.Pe"
+        }
+      ]
+    },
+    {
+      "title": "DFIG Reactive Power",
+      "y_label": "Qe [pu]",
+      "signals": [
+        {
+          "pattern": "DFIG_PHS_*.Qe"
+        }
+      ]
+    },
+    {
+      "title": "DFIG Terminal Voltage",
+      "y_label": "Vt [pu]",
+      "signals": [
+        {
+          "pattern": "DFIG_PHS_*.V_term"
+        }
+      ]
+    },
+    {
+      "title": "Torsional Torques — T_shaft vs Te vs T_aero (DFIG 1)",
+      "y_label": "Torque [pu]",
+      "signals": [
+        {
+          "pattern": "DFIG_DT_PHS_1.T_shaft"
+        },
+        {
+          "pattern": "DFIG_PHS_1.Te_elec"
+        },
+        {
+          "pattern": "DFIG_DT_PHS_1.T_aero"
+        }
+      ]
+    },
+    {
+      "title": "Shaft Twist Rate (\u03c9_t \u2212 \u03c9_g)",
+      "y_label": "\u0394\u03c9 [pu]",
+      "signals": [
+        {
+          "pattern": "DFIG_DT_PHS_*.twist_rate"
+        }
+      ]
+    },
+    {
+      "title": "Shaft Twist Angle \u03b8_tw",
+      "y_label": "\u03b8_tw [rad]",
+      "signals": [
+        {
+          "pattern": "DFIG_DT_PHS_*.theta_tw"
+        }
+      ]
+    },
+    {
+      "title": "Drivetrain — Turbine Speeds",
+      "y_label": "\u03c9_t [pu]",
+      "signals": [
+        {
+          "pattern": "DFIG_DT_PHS_*.omega_t"
+        }
+      ]
+    },
+    {
+      "title": "MPC RSC — Rotor Voltage Commands",
+      "y_label": "Vr [pu]",
+      "signals": [
+        {
+          "pattern": "DFIG_RSC_MPC_PHS_*.Vrd_cmd"
+        },
+        {
+          "pattern": "DFIG_RSC_MPC_PHS_*.Vrq_cmd"
+        }
+      ]
+    },
+    {
+      "title": "MPC RSC — Virtual Frequency (APC)",
+      "y_label": "\u03c9_vs [pu]",
+      "signals": [
+        {
+          "pattern": "DFIG_RSC_MPC_PHS_*.omega_vs"
+        }
+      ]
+    }
+  ]
+}

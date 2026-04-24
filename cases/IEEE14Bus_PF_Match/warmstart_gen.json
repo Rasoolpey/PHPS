@@ -1,0 +1,19 @@
+{
+  "description": "IEEE 14-Bus — No-fault warmstart generation (start from existing warm-start, let settle)",
+  "system": "system_pf_match.json",
+  "solver": {
+    "method": "ida",
+    "dt": 0.0005,
+    "duration": 60.0
+  },
+  "warm_start": {
+    "csv": "../../outputs/IEEE14Bus_pfmatch_fault/warmstart_pf.csv",
+    "t": 0.0,
+    "delta_unwrap": {},
+    "omega_override": 1.0
+  },
+  "events": [],
+  "output": {
+    "directory": "outputs/IEEE14Bus_pfmatch_warmstart"
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "description": "IEEE 39-bus — Mid-line fault on Line_1 (Bus 1 to Bus 2) at d=0.5",
+  "system": "system.json",
+
+  "solver": {
+    "method": "rk4",
+    "dt": 0.0001,
+    "duration": 10.0
+  },
+
+  "output": {
+    "directory": "outputs/IEEE39Bus/mid_line_fault"
+  },
+
+  "events": [
+    {
+      "type": "LineFault",
+      "line_idx": "Line_1",
+      "distance": 0.5,
+      "r": 0.0001,
+      "x": 0.0001,
+      "t_start": 1.0,
+      "t_duration": 0.15
+    }
+  ],
+
+  "figures": [
+    {
+      "name": "simulation_plot",
+      "panels": [
+        {
+          "title": "Terminal Voltages (Buses near fault)",
+          "signals": [
+            { "pattern": "Vterm_Bus99", "label": "Bus 99 (Fault Point)" },
+            { "pattern": "Vterm_GENROU_*", "label": "Generator terminals" }
+          ]
+        },
+        {
+          "title": "Rotor Angles",
+          "signals": [
+            { "pattern": "GENROU_*_delta_deg", "label": "All generators" }
+          ]
+        },
+        {
+          "title": "Rotor Speeds",
+          "signals": [
+            { "pattern": "GENROU_*_omega", "label": "All generators" }
+          ]
+        },
+        {
+          "title": "Active Power Output",
+          "signals": [
+            { "pattern": "Pe_GENROU_*", "label": "All generators" }
+          ]
+        }
+      ]
+    }
+  ]
+}

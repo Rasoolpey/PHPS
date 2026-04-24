@@ -1,0 +1,61 @@
+{
+  "description": "IEEE 14-Bus DAE (IDA) — PHS models, no fault, equilibrium check",
+  "system": "system_phs.json",
+
+  "solver": {
+    "method": "ida",
+    "dt": 0.0005,
+    "duration": 60.0
+  },
+
+  "output": {
+    "directory": "outputs/IEEE14Bus_phs"
+  },
+
+  "plots": [
+    {
+      "title": "Terminal Voltages",
+      "y_label": "Vterm [pu]",
+      "signals": [
+        { "pattern": "Vterm_Bus*" }
+      ]
+    },
+    {
+      "title": "Rotor Angles",
+      "y_label": "δ [rad]",
+      "signals": [
+        { "pattern": "GENROU*delta" }
+      ]
+    },
+    {
+      "title": "Rotor Speeds",
+      "y_label": "ω [pu]",
+      "signals": [
+        { "pattern": "GENROU*omega" }
+      ]
+    },
+    {
+      "title": "Field Voltages",
+      "y_label": "Efd [pu]",
+      "signals": [
+        { "pattern": "ESST3A*Efd" },
+        { "pattern": "EXST1*Efd" }
+      ]
+    },
+    {
+      "title": "Mechanical Torque",
+      "y_label": "Tm [pu]",
+      "signals": [
+        { "pattern": "TGOV1*Tm" },
+        { "pattern": "IEEEG1*Tm" }
+      ]
+    },
+    {
+      "title": "Governor Integral State (xi)",
+      "y_label": "xi [pu]",
+      "signals": [
+        { "pattern": "TGOV1*xi" }
+      ]
+    }
+  ]
+}

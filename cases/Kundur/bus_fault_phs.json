@@ -1,0 +1,63 @@
+{
+  "description": "Kundur DAE (IDA) — PHS models, 3-phase fault at Bus 7",
+  "system": "system_phs.json",
+
+  "solver": {
+    "method": "ida",
+    "dt": 0.0005,
+    "duration": 15.0
+  },
+
+  "events": [
+    {
+      "type": "BusFault",
+      "bus": 7,
+      "r": 0.0,
+      "x": 0.01,
+      "t_start": 2.0,
+      "t_duration": 0.15
+    }
+  ],
+
+  "output": {
+    "directory": "outputs/Kundur_phs_fault"
+  },
+
+  "plots": [
+    {
+      "title": "Terminal Voltages",
+      "y_label": "Vterm [pu]",
+      "signals": [
+        { "pattern": "Vterm_Bus*" }
+      ]
+    },
+    {
+      "title": "Rotor Angles",
+      "y_label": "δ [rad]",
+      "signals": [
+        { "pattern": "GENROU*delta" }
+      ]
+    },
+    {
+      "title": "Rotor Speeds",
+      "y_label": "ω [pu]",
+      "signals": [
+        { "pattern": "GENROU*omega" }
+      ]
+    },
+    {
+      "title": "Field Voltages",
+      "y_label": "Efd [pu]",
+      "signals": [
+        { "pattern": "EXDC2*Efd" }
+      ]
+    },
+    {
+      "title": "Mechanical Torque",
+      "y_label": "Tm [pu]",
+      "signals": [
+        { "pattern": "TGOV*Valve" }
+      ]
+    }
+  ]
+}

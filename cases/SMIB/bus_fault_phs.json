@@ -1,0 +1,49 @@
+{
+  "description": "SMIB DAE (IDA) — PHS models, 3-phase fault on Bus 2",
+  "system": "system_phs.json",
+
+  "solver": {
+    "method": "ida",
+    "dt": 0.0005,
+    "duration": 5.0
+  },
+
+  "events": [
+    {
+      "type": "BusFault",
+      "bus": 2,
+      "r": 0.0,
+      "x": 0.01,
+      "t_start": 1.0,
+      "t_duration": 0.1
+    }
+  ],
+
+  "output": {
+    "directory": "outputs/SMIB_phs_fault"
+  },
+
+  "plots": [
+    {
+      "title": "Terminal Voltages",
+      "y_label": "Vterm [pu]",
+      "signals": [
+        { "pattern": "Vterm_Bus*" }
+      ]
+    },
+    {
+      "title": "Rotor Angle",
+      "y_label": "δ [rad]",
+      "signals": [
+        { "pattern": "GENROU*delta" }
+      ]
+    },
+    {
+      "title": "Rotor Speed",
+      "y_label": "ω [pu]",
+      "signals": [
+        { "pattern": "GENROU*omega" }
+      ]
+    }
+  ]
+}

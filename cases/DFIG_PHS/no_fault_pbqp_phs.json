@@ -1,0 +1,138 @@
+{
+    "description": "IEEE 14-bus DFIG PBQP-PHS no-fault test (DAE, full Y-bus)",
+    "system": "cases/DFIG_PHS/ieee14_dfig_pbqp_phs.json",
+    "solver": {
+        "dt": 0.0005,
+        "duration": 20.0,
+        "method": "bdf1"
+    },
+    "output": {
+        "directory": "outputs/DFIG_PBQP_PHS"
+    },
+    "events": [],
+    "plots": [
+        {
+            "title": "Terminal Voltages",
+            "y_label": "Vterm [pu]",
+            "signals": [
+                { "pattern": "Vterm_Bus*" }
+            ]
+        },
+        {
+            "title": "Grid Frequency (GENCLS)",
+            "y_label": "ω [pu]",
+            "signals": [
+                { "pattern": "GENCLS_1.omega" }
+            ]
+        },
+        {
+            "title": "DFIG Generator Speeds",
+            "y_label": "ω_g [pu]",
+            "signals": [
+                { "pattern": "DFIG_PHS_*.omega_pu" }
+            ]
+        },
+        {
+            "title": "DFIG Active Power",
+            "y_label": "Pe [pu]",
+            "signals": [
+                { "pattern": "DFIG_PHS_*.Pe" }
+            ]
+        },
+        {
+            "title": "DFIG Reactive Power",
+            "y_label": "Qe [pu]",
+            "signals": [
+                { "pattern": "DFIG_PHS_*.Qe" }
+            ]
+        },
+        {
+            "title": "DFIG Electromagnetic Torque",
+            "y_label": "Te [pu]",
+            "signals": [
+                { "pattern": "DFIG_PHS_*.Te_elec" }
+            ]
+        },
+        {
+            "title": "DFIG Terminal Voltage",
+            "y_label": "Vt [pu]",
+            "signals": [
+                { "pattern": "DFIG_PHS_*.V_term" }
+            ]
+        },
+        {
+            "title": "DFIG Slip",
+            "y_label": "slip [-]",
+            "signals": [
+                { "pattern": "DFIG_PHS_*.slip" }
+            ]
+        },
+        {
+            "title": "PB-QP RSC — Virtual Frequency (APC)",
+            "y_label": "ω_vs [pu]",
+            "signals": [
+                { "pattern": "DFIG_RSC_PBQP_PHS_*.omega_vs" }
+            ]
+        },
+        {
+            "title": "PB-QP RSC — Virtual Angle (APC)",
+            "y_label": "θ_s [rad]",
+            "signals": [
+                { "pattern": "DFIG_RSC_PBQP_PHS_*.theta_s" }
+            ]
+        },
+        {
+            "title": "PB-QP RSC — Rotor Voltage Commands",
+            "y_label": "Vr [pu]",
+            "signals": [
+                { "pattern": "DFIG_RSC_PBQP_PHS_*.Vrd_cmd" },
+                { "pattern": "DFIG_RSC_PBQP_PHS_*.Vrq_cmd" }
+            ]
+        },
+        {
+            "title": "PB-QP RSC — Rotor Power to DC Link",
+            "y_label": "P_rotor [pu]",
+            "signals": [
+                { "pattern": "DFIG_RSC_PBQP_PHS_*.P_rotor" }
+            ]
+        },
+        {
+            "title": "GSC Input — DC Link Voltage",
+            "y_label": "Vdc [pu]",
+            "signals": [
+                { "pattern": "DFIG_DCLink_PHS_*.V_dc" }
+            ]
+        },
+        {
+            "title": "GSC Outputs — Grid-Side Power",
+            "y_label": "[pu]",
+            "signals": [
+                { "pattern": "DFIG_GSC_GFM_PHS_*.P_gsc" },
+                { "pattern": "DFIG_GSC_GFM_PHS_*.Q_gsc" }
+            ]
+        },
+        {
+            "title": "GSC Filter Currents",
+            "y_label": "i_f [pu]",
+            "signals": [
+                { "pattern": "DFIG_GSC_GFM_PHS_*.i_fd" },
+                { "pattern": "DFIG_GSC_GFM_PHS_*.i_fq" }
+            ]
+        },
+        {
+            "title": "Drivetrain — Turbine Speed & Shaft Torque",
+            "y_label": "[pu]",
+            "signals": [
+                { "pattern": "DFIG_DT_PHS_*.omega_t" },
+                { "pattern": "DFIG_DT_PHS_*.T_shaft" }
+            ]
+        },
+        {
+            "title": "Drivetrain — Aerodynamic Torque",
+            "y_label": "T_aero [pu]",
+            "signals": [
+                { "pattern": "DFIG_DT_PHS_*.T_aero" }
+            ]
+        }
+    ]
+}

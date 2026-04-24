@@ -222,7 +222,7 @@ Current runtime auto-generation paths:
 - Symbolic PHS runtime generation: `IEEEG1_PHS`, `TGOV1_PHS`, `EXDC2_PHS`, `IEEEX1_PHS`
 - Signal-flow runtime generation: `ST2CUT_PHS`, `IEEEST_PHS`
 
-`GENROU_PHS` remains on `init_from_phasor()` + Kron/network refinement, which is still the correct place for generator/network coupled equilibrium until the Track B composed-equilibrium work lands.
+`GENROU_PHS` uses `init_from_phasor()` for the initial phasor-based flux state computation. In the DAE pipeline no Kron reduction is ever performed — the DAE-consistent voltage solve (`Y_full · V = I_norton`) replaces the ODE pipeline's Kron equilibrium refinement entirely.
 
 ### Adding a New Component
 
@@ -324,14 +324,23 @@ When the compiler builds the system, it runs `validate_phs_structure()` on every
 
 ## Initialization Pipeline
 
-Power system initialization is not trivial: the steady-state operating point of 50+ coupled states must be found before simulation starts. The framework handles this automatically in multiple passes:
+Power system initialization is not trivial: the steady-state operating point of 50+ coupled states must be found before simulation starts. The two pipelines share the first five steps, then diverge for network consistency.
+
+### Shared steps (both pipelines)
 
 1. **Power flow** — Newton-Raphson AC power flow for bus voltages $(V, \theta)$
 2. **Generator initialization** — Park transform → stator algebraic → initial flux states from $(V, I)$ phasors
 3. **Exciter initialization** — Generic `solve_equilibrium()` / `InitSpec` path for controller-side PHS models, producing the required $E_{fd}$ at steady state
 4. **PSS initialization** — Generic `InitSpec` steady-state solve (callback-backed for ST2CUT/IEEEST), with runtime equations auto-generated from `SignalFlowGraph`
 5. **Governor initialization** — Generic `solve_equilibrium()` back-solve from mechanical torque $T_m = T_e$ at equilibrium
-6. **Kron equilibrium convergence** — Iterative refinement between network solution and component states until the entire system is self-consistent
+
+### DAE pipeline (step 6) — full Y-matrix, no Kron reduction
+
+6. **DAE-consistent voltage solve** — Iteratively solve $V = Y_{\text{bus}}^{-1} \cdot I_{\text{norton}}$ against the **full** Y-bus (all buses present). Generator Eq′ states are adjusted until PV-bus voltage setpoints are met, then $T_m$, governor, and exciter states are rebalanced to the DAE operating point. No buses are ever eliminated.
+
+### ODE pipeline (step 6) — Kron-reduced Z-bus
+
+6. **Kron equilibrium convergence** — Generator bus voltages are computed from the **Kron-reduced** Z-bus (load and passive buses eliminated). Component states are iteratively refined against the reduced network until self-consistent.
 
 Generators still implement `init_from_phasor()`. Controller-side PHS components now declare an `InitSpec` on their `SymbolicPHS`, and the base class routes `init_from_targets()` through the generic equilibrium interface automatically.
 
@@ -467,7 +476,7 @@ PHPS/
 │   ├── initialization.py             # Multi-pass state initializer
 │   ├── runner.py                     # SimulationRunner (ODE pipeline)
 │   ├── powerflow.py                  # Newton-Raphson AC power flow
-│   ├── ybus.py                       # Y-bus / Z-bus / Kron reduction
+│   ├── ybus.py                       # Y-bus assembly; Z-bus / Kron reduction (ODE pipeline only)
 │   ├── json_compat.py                # JSON format upgrade + component registry
 │   ├── errors.py                     # Structured error types
 │   │
@@ -590,9 +599,10 @@ The same JSON system file works with both pipelines:
 
 | | DAE Pipeline (`run_dae_simulation.py`) | ODE Pipeline (`run_simulation.py`) |
 |---|---|---|
-| Network | Full Y-bus, algebraic bus voltages | Kron-reduced Z-bus |
+| **Network model** | **Full Y-bus** — all buses present, no elimination | **Kron-reduced Z-bus** — load/passive buses eliminated |
 | Solver | C++: IDA / BDF-1 / Midpoint; Python: JIT / SciPy Radau | RK4 / SDIRK-2 (explicit/implicit) |
-| Bus voltages | DAE: part of state vector; ODE: solved via LU at each step | Solved in algebraic loop |
+| Bus voltages | Part of the DAE state vector — solved implicitly at every step | Solved in an explicit algebraic loop via LU at each step |
+| Init network step | Full Y-bus: $V = Y^{-1} I_{\text{norton}}$ — no Kron reduction ever | Kron Z-bus: iterative refinement on reduced network |
 | Primary use | Production simulation (C++/IDA) and prototyping (JIT/SciPy) | Cross-validation, exploration |
 
 ### Generic at the Protocol Level

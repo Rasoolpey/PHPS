@@ -1,0 +1,123 @@
+{
+  "description": "IEEE 14-bus DFIG GFM-PHS — Wind gust (no fault, fixed-structure PBQP controller)",
+  "system": "cases/DFIG_PHS/ieee14_dfig_gfm_wind.json",
+  "solver": {
+    "dt": 0.0005,
+    "duration": 60.0,
+    "method": "bdf1"
+  },
+  "output": {
+    "directory": "outputs/DFIG_GFM_PHS_wind"
+  },
+  "events": [],
+  "plots": [
+    {
+      "title": "Terminal Voltages",
+      "y_label": "Vterm [pu]",
+      "signals": [
+        { "pattern": "Vterm_Bus*" }
+      ]
+    },
+    {
+      "title": "Grid Frequency (GENCLS)",
+      "y_label": "ω [pu]",
+      "signals": [
+        { "pattern": "GENCLS_1.omega" }
+      ]
+    },
+    {
+      "title": "DFIG Generator Speeds",
+      "y_label": "ω_g [pu]",
+      "signals": [
+        { "pattern": "DFIG_PHS_*.omega_pu" }
+      ]
+    },
+    {
+      "title": "DFIG Active Power",
+      "y_label": "Pe [pu]",
+      "signals": [
+        { "pattern": "DFIG_PHS_*.Pe" }
+      ]
+    },
+    {
+      "title": "DFIG Reactive Power",
+      "y_label": "Qe [pu]",
+      "signals": [
+        { "pattern": "DFIG_PHS_*.Qe" }
+      ]
+    },
+    {
+      "title": "DFIG Electromagnetic Torque",
+      "y_label": "Te [pu]",
+      "signals": [
+        { "pattern": "DFIG_PHS_*.Te_elec" }
+      ]
+    },
+    {
+      "title": "GFM RSC — Virtual Frequency (APC)",
+      "y_label": "ω_vs [pu]",
+      "signals": [
+        { "pattern": "DFIG_RSC_GFM_PHS_*.omega_vs" }
+      ]
+    },
+    {
+      "title": "GFM RSC — Rotor Voltage Commands",
+      "y_label": "Vr [pu]",
+      "signals": [
+        { "pattern": "DFIG_RSC_GFM_PHS_*.Vrd_cmd" },
+        { "pattern": "DFIG_RSC_GFM_PHS_*.Vrq_cmd" }
+      ]
+    },
+    {
+      "title": "GSC — DC Link Voltage",
+      "y_label": "Vdc [pu]",
+      "signals": [
+        { "pattern": "DFIG_DCLink_PHS_*.V_dc" }
+      ]
+    },
+    {
+      "title": "DFIG Terminal Voltage (machine)",
+      "y_label": "Vt [pu]",
+      "signals": [
+        { "pattern": "DFIG_PHS_*.V_term" }
+      ]
+    },
+    {
+      "title": "Torsional Torques — T_shaft vs Te vs T_aero (DFIG 1)",
+      "y_label": "Torque [pu]",
+      "signals": [
+        { "pattern": "DFIG_DT_PHS_1.T_shaft" },
+        { "pattern": "DFIG_PHS_1.Te_elec" },
+        { "pattern": "DFIG_DT_PHS_1.T_aero" }
+      ]
+    },
+    {
+      "title": "Shaft Twist Rate (ω_t − ω_r) — Torsional Oscillation",
+      "y_label": "Δω [pu]",
+      "signals": [
+        { "pattern": "DFIG_DT_PHS_*.twist_rate" }
+      ]
+    },
+    {
+      "title": "Shaft Twist Angle θ_tw",
+      "y_label": "θ_tw [rad]",
+      "signals": [
+        { "pattern": "DFIG_DT_PHS_*.theta_tw" }
+      ]
+    },
+    {
+      "title": "Drivetrain — Turbine Speeds",
+      "y_label": "ω_t [pu]",
+      "signals": [
+        { "pattern": "DFIG_DT_PHS_*.omega_t" }
+      ]
+    },
+    {
+      "title": "DFIG Slip",
+      "y_label": "slip [-]",
+      "signals": [
+        { "pattern": "DFIG_PHS_*.slip" }
+      ]
+    }
+  ]
+}

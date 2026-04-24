@@ -1,0 +1,343 @@
+CHANGES FROM GenRou TO GenRouFull
+==================================
+Date: 2026-03-30
+
+
+1. STATE VECTOR
+---------------
+BEFORE (GenRou):
+    x = [delta, omega, Eq_prime, psi_d, psi_q, Ed_prime]
+    -- mixed representation using transient EMFs (Eq', Ed') as states
+
+AFTER (GenRouFull):
+    x = [delta, omega, psi_fd, psi_1d, psi_1q, psi_2q]
+    -- true rotor winding fluxes as states (physically exact)
+
+WHY:
+    The PowerFactory standard model (Section 6.1.2, Eq. 68) integrates
+    the actual winding flux directly via:
+        dpsi/dt = omega_n * (v_rotor - r * i_rotor)
+    Winding flux is the true conserved quantity in each rotor loop.
+    The transient EMF representation (Eq', Ed') is a reduced-order
+    approximation (GENROU-style) that loses the individual winding
+    physics and cannot support saturation or the coupling reactance xrld.
+
+
+2. PARAMETER CONVERSION: SHORT-CIRCUIT -> EQUIVALENT CIRCUIT
+-------------------------------------------------------------
+BEFORE (GenRou):
+    Used short-circuit parameters (xd, xd', xd'', Td0', Td0'', etc.)
+    directly in simplified blending formulas. No conversion performed.
+
+AFTER (GenRouFull):
+    Added three conversion functions:
+        sc_to_eqcct_daxis()          -- d-axis (Canay exact method)
+        sc_to_eqcct_qaxis_round()    -- q-axis round-rotor (two loops)
+        sc_to_eqcct_qaxis_salient()  -- q-axis salient-pole (one loop)
+
+    These compute the internal winding parameters:
+        xad, xfd, x1d, x1q, x2q
+        rfd, r1d, r1q, r2q
+
+    from the standard user-facing short-circuit inputs.
+
+    Implements PowerFactory Section 6.1.1.1, Equations 49-54 (Canay
+    exact procedure).
+
+WHY:
+    Users enter short-circuit parameters from test measurements.
+    The ODE needs the physical winding resistances and reactances.
+    Without this conversion the model cannot be parameterised from
+    standard generator data sheets.
+
+
+3. COUPLING FACTORS (SUBTRANSIENT BLENDING)
+--------------------------------------------
+BEFORE (GenRou):
+    Hard-coded simplified formulas:
+        k_d = (xd'' - xl) / (xd' - xl)
+        k_q = (xq'' - xl) / (xq' - xl)
+
+AFTER (GenRouFull):
+    Added three functions:
+        _coupling_factors_daxis()          -- PowerFactory Eq. 64
+        _coupling_factors_qaxis_round()    -- PowerFactory Eq. 66
+        _coupling_factors_qaxis_salient()  -- PowerFactory Eq. 65
+
+    These compute k_fd, k_1d, k_1q, k_2q from the actual winding
+    reactances (xad, xrld, xfd, x1d, xaq, xrlq, x1q, x2q).
+
+WHY:
+    The simplified k_d formula is only valid when the coupling
+    reactance xrld = 0 and under the standard (non-exact) assumption.
+    The full expressions are needed when xrld != 0 (coupling between
+    field and 1d-damper winding is non-zero).
+
+
+4. SATURATION
+-------------
+BEFORE (GenRou):
+    No saturation implemented.
+
+AFTER (GenRouFull):
+    Added:
+        _csat_quadratic()    -- quadratic approximation (Eqs. 120-122)
+        _csat_exponential()  -- exponential approximation (Eqs. 123-124)
+        _saturation_factors() -- returns (satd, satq) each timestep
+
+    Three saturation models selectable via parameter 'sat_model':
+        "none"         -- no saturation (default)
+        "quadratic"    -- uses parameters SG10, SG12
+        "exponential"  -- uses parameters SG10, SG12
+
+    Three axis options selectable via parameter 'sat_axis':
+        "dq_magnitude" -- common for round-rotor (Eq. 127)
+        "dq_equal"     -- equal d and q saturation (Eq. 128)
+        "d_only"       -- salient-pole, d-axis only (Eq. 129)
+
+    Saturation modifies xad and xaq each timestep which ripples
+    through the coupling factors into the effective xd'', xq''.
+
+WHY:
+    Saturation is important for accurate excitation current
+    (ie) prediction and realistic voltage regulation modelling.
+    Without saturation, field current at rated load is underestimated.
+
+
+5. DAMPING TORQUE COEFFICIENTS
+-------------------------------
+BEFORE (GenRou):
+    Single damping coefficient D in swing equation:
+        dxdt[1] = (Tm - Te - D*(omega - 1)) / (2*H)
+
+AFTER (GenRouFull):
+    Three separate coefficients matching PowerFactory Eqs. 102-104:
+        dkd  -- damping torque:  tdkd = dkd * (omega - omega_ref)
+        dpe  -- power-based:     tdpe = (dpe / omega) * (omega - omega_ref)
+        dpu  -- shaft friction:  embedded in mechanical torque tm
+
+    Mechanical torque formula (PowerFactory Eq. 102):
+        tm = Tm_input / omega - dpu * omega
+
+WHY:
+    PowerFactory separates physical damping sources. dpu represents
+    bearing/windage friction (speed-proportional). dkd represents
+    electrical damping from the network. dpe represents load damping
+    (frequency-dependent load). Lumping all three into one D coefficient
+    is a common simplification that loses physical meaning.
+
+
+6. EXCITATION INTERFACING (NON-RECIPROCAL P.U. SYSTEM)
+-------------------------------------------------------
+BEFORE (GenRou):
+    Input 'Efd' used directly in the Eq' equation:
+        dxdt[2] = (Efd - Eq_p - (xd - xd')*(id)) / Td0_prime
+    No distinction between reciprocal and non-reciprocal p.u. systems.
+
+AFTER (GenRouFull):
+    Added two conversion methods:
+        _excitation_current()        -- ifd (reciprocal) -> ie (non-reciprocal)
+                                        ie = xadu * ifd    [PF Eq. 131]
+        _excitation_voltage_input()  -- ve (non-reciprocal) -> vfd (reciprocal)
+                                        vfd = (rfd/xadu)*ve  [PF Eq. 132]
+
+    Input port renamed from 'Efd' to 've' (excitation voltage).
+    Output 'ie' (excitation current) added to port schema.
+
+WHY:
+    IEEE standard AVR models (ST1A, EXAC1, etc.) operate in the
+    non-reciprocal air-gap-line p.u. system where ie=1 produces
+    1 p.u. terminal voltage at no-load on the air-gap line.
+    Without this conversion, connecting a standard AVR model gives
+    wrong steady-state excitation and incorrect voltage regulation.
+
+
+7. HAMILTONIAN -- WINDING-LOOP MAGNETIC ENERGIES
+-------------------------------------------------
+BEFORE (GenRou):
+    H = H_mech + Eq'^2/(2*(xd-xl)) + Ed'^2/(2*(xq-xl))
+        + psi_d^2/(2*(xd'-xd'')) + psi_q^2/(2*(xq'-xq''))
+    Energies expressed in terms of transient EMFs and approximate
+    reactance differences.
+
+AFTER (GenRouFull):
+    H = H_mech + psi_fd^2/(2*xfd_loop)
+               + psi_1d^2/(2*x1d_loop)
+               + psi_1q^2/(2*x1q_loop)
+               + psi_2q^2/(2*x2q_loop)
+
+    where xfd_loop = xad + xrld + xfd  (total loop reactance, Eq. 72)
+    and similarly for the other windings.
+
+WHY:
+    The magnetic energy stored in a winding is psi^2 / (2*L_loop).
+    This is the correct physical energy. It makes the dissipation
+    matrix R truly positive semi-definite because:
+        R[j,j] * (dH/dpsi_j)^2 = r_j * i_j^2  (Ohmic loss)
+    The previous approximation using reactance differences was
+    only valid for a specific reduced-order model and did not
+    correspond to a physical energy in the winding.
+
+
+8. PHS MATRICES J, R, B
+------------------------
+BEFORE (GenRou):
+    J: only delta-omega coupling block
+    R: diagonal with 1/Td0', 1/Td0'', 1/Tq0', 1/Tq0'' entries
+       (these are NOT physical dissipation rates)
+    g: input matrix with Tm and Efd direct coupling
+
+AFTER (GenRouFull):
+    J: same skew-symmetric delta-omega block (unchanged)
+
+    R: physically correct dissipation rates:
+        R[1,1] = dkd / (2H)                  -- speed damping
+        R[2,2] = rfd * omega_b / xfd_loop    -- field winding copper loss
+        R[3,3] = r1d * omega_b / x1d_loop    -- 1d-damper copper loss
+        R[4,4] = r1q * omega_b / x1q_loop    -- 1q-damper copper loss
+        R[5,5] = r2q * omega_b / x2q_loop    -- 2q-damper copper loss
+
+    B: renamed from g to B (standard PHS notation):
+        B[1,2] = 1/(2H)                      -- Tm drives domega/dt
+        B[2,3] = omega_b * rfd / xadu        -- ve drives dpsi_fd/dt
+
+WHY:
+    The previous R entries (1/Td0' etc.) were time constants, not
+    dissipation rates. In PHS the R matrix must satisfy R >= 0 and
+    represent actual power dissipation R * (dH/dx)^2 >= 0.
+    Using physical winding resistances divided by winding inductances
+    gives the correct Ohmic dissipation per winding loop.
+
+
+9. ROTOR CURRENT COMPUTATION
+-----------------------------
+BEFORE (GenRou):
+    Not computed explicitly. Currents were implicit in the
+    blended subtransient flux formulas.
+
+AFTER (GenRouFull):
+    Added _rotor_currents() implementing PowerFactory Eq. 69:
+        i_fd = k_fd*id + (x1d_loop*psi_fd - (xad+xrld)*psi_1d) / xdet_d
+        i_1d = k_1d*id + (xfd_loop*psi_1d - (xad+xrld)*psi_fd) / xdet_d
+        i_1q = k_1q*iq + (x2q_loop*psi_1q - (xaq+xrlq)*psi_2q) / xdet_q
+        i_2q = k_2q*iq + (x1q_loop*psi_2q - (xaq+xrlq)*psi_1q) / xdet_q
+
+    These are needed to:
+        a) compute the rotor voltage equations (ODE right-hand side)
+        b) compute the excitation current ie = xadu * ifd
+        c) evaluate saturation via the magnetising flux
+
+
+10. SALIENT-POLE SUPPORT
+--------------------------
+BEFORE (GenRou):
+    Round-rotor only. No branching for different machine topologies.
+
+AFTER (GenRouFull):
+    Parameter 'salient_pole': True/False selects topology.
+
+    Salient-pole differences:
+        -- No 2q-damper winding (psi_2q frozen at 0, k_2q = 0)
+        -- Different q-axis equivalent circuit conversion (Eq. 54)
+        -- Different coupling factor formula (Eq. 65)
+        -- R[5,5] = 0 (no 2q-damper dissipation)
+        -- Saturation axis defaults to 'd_only' (Eq. 129)
+        -- Rotor current i_2q = 0, i_1q simplified (Eq. 71)
+
+
+11. INITIALISATION (init_from_phasor)
+--------------------------------------
+BEFORE (GenRou):
+    Used simplified expressions based on xd, xq, xd', xq' to derive
+    Eq', psi_d, psi_q, Ed' from power-flow phasors.
+
+AFTER (GenRouFull):
+    Full physical initialisation:
+        a) rotor angle from q-axis phasor (Eq. 116)
+        b) Park transform to dq frame
+        c) steady-state stator fluxes from voltage equations (n=1, d/dt=0)
+        d) magnetising fluxes: psi_ad = psi_d + xl*id
+        e) field current: i_fd_ss = psi_ad / xad
+        f) winding fluxes from rotor flux equations at SS:
+               psi_fd = psi_ad + (xrld + xfd) * i_fd
+               psi_1d = psi_ad + xrld * i_fd
+               psi_1q = psi_aq  (i_1q = 0 at SS)
+               psi_2q = psi_aq  (i_2q = 0 at SS)
+        g) excitation current: ie = xadu * i_fd  (non-reciprocal)
+        h) ve_ss = ie_ss  (from air-gap-line base, Eq. 133)
+
+    Targets dict now includes 'ie' in addition to Efd, Tm, Vt, etc.
+
+
+12. PORT SCHEMA CHANGES
+------------------------
+BEFORE (GenRou):
+    Inputs:  Vd, Vq, Tm, Efd       (Efd in reciprocal p.u.)
+    Outputs: Id, Iq, omega, Pe, Qe, id_dq, iq_dq, It_Re, It_Im
+
+AFTER (GenRouFull):
+    Inputs:  vd, vq, Tm, ve        (ve in non-reciprocal p.u.)
+    Outputs: id, iq, omega, Te, Pe, Qe, ie, I_Re, I_Im
+             (Te electrical torque added; ie excitation current added)
+
+
+13. PARAMETERS ADDED
+---------------------
+    xrld        -- coupling reactance field-to-1d-damper (default 0)
+    xrlq        -- coupling reactance q-axis dampers (default 0)
+    dkd         -- damping torque coefficient
+    dpe         -- power-based damping coefficient
+    dpu         -- shaft friction coefficient
+    SG10        -- saturation factor at 1.0 p.u. voltage
+    SG12        -- saturation factor at 1.2 p.u. voltage
+    sat_model   -- saturation model: "none", "quadratic", "exponential"
+    sat_axis    -- saturation axis: "dq_magnitude", "dq_equal", "d_only"
+    salient_pole -- True/False machine topology selector
+    cosn        -- rated power factor (used in torque equation)
+
+PARAMETERS REMOVED/RENAMED:
+    D           --> split into dkd, dpe, dpu
+    ra          --> renamed to rstr (matches PowerFactory convention)
+    xd_prime    --> renamed to xd_prime (unchanged)
+    Td0_prime   --> unchanged
+    xd_double_prime --> renamed to xd_pp
+    Td0_double_prime --> renamed to Td0_pp
+    (same pattern for q-axis)
+
+
+SUMMARY OF POWERFACTORY EQUATIONS IMPLEMENTED
+=============================================
+Eq.  55  Stator voltage equations (general)
+Eq.  58  Magnetising flux definitions
+Eq.  60  Subtransient flux definitions (psi'')
+Eq.  61  Stator flux from subtransient (psi_d, psi_q)
+Eq.  64  d-axis coupling factors (k_fd, k_1d, xd'')
+Eq.  65  q-axis coupling factors salient (k_1q, xq'')
+Eq.  66  q-axis coupling factors round-rotor (k_1q, k_2q, xq'')
+Eq.  67  Electrical torque te
+Eq.  68  Rotor voltage equations (ODE for psi_fd, psi_1d, psi_1q, psi_2q)
+Eq.  69  Rotor current expressions (ifd, i1d, i1q, i2q)
+Eq.  70  Determinant expressions (xdet_d, xdet_q)
+Eq.  71  Salient-pole rotor current (i1q simplified)
+Eq.  72  Reactance loop sums (xfd_loop, x1d_loop, x1q_loop, x2q_loop)
+Eq.  73  Stator voltage equations RMS (simplified, n approx 1)
+Eq.  74  Subtransient voltages (u''_d, u''_q)
+Eq. 100  Swing equation (dω/dt)
+Eq. 102  Mechanical torque (tm)
+Eq. 103  Damping torque dkd
+Eq. 104  Damping torque dpe
+Eq. 115  Rotor angle rate (dδ/dt)
+Eq. 116  Rotor angle initialisation from q-axis phasor
+Eq. 117  Saturated mutual reactances (xad_sat, xaq_sat)
+Eq. 120  Quadratic saturation c_sat
+Eq. 121  Quadratic A_g coefficient
+Eq. 122  Quadratic B_g coefficient
+Eq. 123  Exponential saturation c_sat
+Eq. 124  Exponential exponent
+Eq. 127  Saturation factors dq_magnitude option (satd, satq)
+Eq. 128  Saturation factors dq_equal option
+Eq. 129  Saturation factors d_only option
+Eq. 131  Excitation current non-reciprocal conversion (ie = xadu*ifd)
+Eq. 132  Excitation voltage reciprocal conversion (vfd = rfd/xadu * ve)
+Eq. 133  Excitation voltage initialisation (ve_ss = ie_ss)
+Eq. 49-54 Equivalent circuit parameter conversion (Canay exact method)
