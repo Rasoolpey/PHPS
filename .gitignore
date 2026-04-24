@@ -1,0 +1,15 @@
+*.csv
+*.pdf
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+
+# Ignore build directories
+outputs/
+*.exe
+*.synctex.gz
+*.synctex(busy)
