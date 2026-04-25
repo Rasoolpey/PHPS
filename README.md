@@ -1,12 +1,8 @@
-<table>
-<tr>
-<td valign="middle"><img src="Logo/PHPS.png" height="90" alt="PHPS Logo"/></td>
-<td valign="middle">
-<h1>PHPS — Port-Hamiltonian Power System Simulator</h1>
-<p><em>A compiled power system transient stability simulator — JSON to native C++ DAE in one command.</em></p>
-</td>
-</tr>
-</table>
+<div align="center">
+  <img src="Logo/PHPS.png" width="560" alt="PHPS — Port-Hamiltonian Power System Simulator"/>
+  <br/>
+  <sub><em>A compiled port-Hamiltonian power system simulator — JSON to native C++ DAE in one command.</em></sub>
+</div>
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=c%2B%2B&logoColor=white)](https://isocpp.org/)
