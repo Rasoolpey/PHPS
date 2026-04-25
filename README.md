@@ -1,6 +1,6 @@
 <table>
 <tr>
-<td valign="middle"><img src="Logo/PHPS.svg" height="90" alt="PHPS Logo"/></td>
+<td valign="middle"><img src="Logo/PHPS.png" height="90" alt="PHPS Logo"/></td>
 <td valign="middle">
 <h1>PHPS — Port-Hamiltonian Power System Simulator</h1>
 <p><em>A compiled power system transient stability simulator — JSON to native C++ DAE in one command.</em></p>
