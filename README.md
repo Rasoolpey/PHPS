@@ -4,6 +4,7 @@
   <sub><em>A compiled port-Hamiltonian power system simulator — JSON to native C++ DAE in one command.</em></sub>
 </div>
 
+<br/>
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=c%2B%2B&logoColor=white)](https://isocpp.org/)
@@ -573,10 +574,8 @@ Before emitting any C++, the compiler calls `validate_phs_structure()` on every 
 
 ## Acknowledgements
 
-<table><tr>
-<td><img src="Logo/FAN.png" height="70" alt="Future Architecture of the Network — Te Whatunga Hiko"/></td>
-<td>This work was supported by the New Zealand Ministry of Business, Innovation and Employment (MBIE) under Contract <strong>UOCX2007</strong>: <em>Architecture of the Future Low-Carbon, Resilient, Electrical Power System.</em></td>
-</tr></table>
+<img src="Logo/FAN.png" height="70" align="left" alt="Future Architecture of the Network — Te Whatunga Hiko"/>&nbsp;&nbsp;This work was supported by the New Zealand Ministry of Business, Innovation and Employment (MBIE) under Contract **UOCX2007**: *Architecture of the Future Low-Carbon, Resilient, Electrical Power System.*
+<br clear="both"/>
 
 ---
 
