@@ -573,9 +573,10 @@ Before emitting any C++, the compiler calls `validate_phs_structure()` on every 
 
 ## Acknowledgements
 
-<img src="Logo/FAN.png" height="60" alt="Future Architecture of the Network — Te Whatunga Hiko"/>
-
-This work was supported by the New Zealand Ministry of Business, Innovation and Employment (MBIE) under Contract **UOCX2007**: *Architecture of the Future Low-Carbon, Resilient, Electrical Power System.*
+<table><tr>
+<td>This work was supported by the New Zealand Ministry of Business, Innovation and Employment (MBIE) under Contract <strong>UOCX2007</strong>: <em>Architecture of the Future Low-Carbon, Resilient, Electrical Power System.</em></td>
+<td align="right"><img src="Logo/FAN.png" height="70" alt="Future Architecture of the Network — Te Whatunga Hiko"/></td>
+</tr></table>
 
 ---
 
