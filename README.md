@@ -20,7 +20,7 @@
 
 PHPS is a power system transient stability simulator that compiles JSON network descriptions into native C++ solvers. It encodes network topology, component physics, and control wiring into a single differential-algebraic equation (DAE) system and solves it with the SUNDIALS IDA variable-order BDF integrator at native speed — no Python overhead during the actual simulation.
 
-Every synchronous machine, exciter, governor, power system stabilizer, and renewable inverter is a self-contained Python class that declares its own states, ports, parameters, and C++ dynamics. The framework provides six integration backends across four execution tiers: interpreted Python, SciPy Radau, Numba JIT-compiled, and fully compiled C++. The compiled C++/IDA backend achieves a **378× speedup** over the pure-Python baseline on the IEEE 14-bus benchmark.
+Every grid component , like synchronous machine, exciter, governor and renewable inverter is a self-contained Python class that declares its own states, ports, parameters, and C++ dynamics. The framework provides six integration backends across four execution tiers: interpreted Python, SciPy Radau, Numba JIT-compiled, and fully compiled C++. The compiled C++/IDA backend achieves a **378× speedup** over the pure-Python baseline on the IEEE 14-bus benchmark.
 
 The key mathematical innovation is the **port-Hamiltonian** encoding: every component is described by an energy function $H(x)$ and power-conserving interconnection matrices $(J, R, g)$. This structure guarantees passivity by construction, enables symbolic code generation directly from SymPy expressions, and provides machine-verifiable stability certificates. A shared symbolic layer drives C++ code generation, Python callables, equilibrium initialization, structural validation, and LaTeX export — all from the same SymPy matrices.
 
@@ -39,10 +39,10 @@ python tools/run_dae_simulation.py cases/IEEE14Bus/no_fault_phs.json
 python tools/run_dae_simulation.py cases/IEEE14Bus/bus_fault_phs.json
 
 # Numba JIT backend — no C++ compiler needed, ~8× faster than pure Python
-python tools/run_dae_simulation.py cases/IEEE14Bus/bus_fault_phs_jit.json --no-plot
+python tools/run_simulation.py cases/IEEE14Bus/bus_fault_phs_jit.json --no-plot
 
 # SciPy Radau backend — no C++ compiler needed, adaptive step
-python tools/run_dae_simulation.py cases/IEEE14Bus/bus_fault_phs_scipy.json --no-plot
+python tools/run_simulation.py cases/IEEE14Bus/bus_fault_phs_scipy.json --no-plot
 
 # ODE pipeline (Kron-reduced network, RK4)
 python tools/run_simulation.py cases/IEEE14Bus/no_fault_phs.json --no-plot
