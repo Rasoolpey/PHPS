@@ -65,17 +65,17 @@ The simulation pipeline has four stages:
  JSON system file
        │
        ▼
- ┌─────────────┐    builds     ┌──────────────┐
- │  SystemGraph │ ──────────►  │  PowerFlow    │
- │  (topology,  │              │  (Newton-     │
- │   wires,     │              │   Raphson)    │
- │   components)│              └──────┬───────┘
- └──────┬──────┘                      │ V, θ per bus
-        │                             ▼
+ ┌─────────────┐    builds    ┌──────────────┐
+ │ SystemGraph │ ──────────►  │  PowerFlow   │
+ │ (topology,  │              │  (Newton-    │
+ │  wires,     │              │   Raphson)   │
+ │  components)│              └──────┬───────┘
+ └──────┬──────┘                     │ V, θ per bus
+        │                            ▼
         │                    ┌─────────────────┐
-        │                    │  Initializer     │
-        │                    │  (6-pass state   │
-        │                    │   equilibrium)   │
+        │                    │  Initializer    │
+        │                    │  (6-pass state  │
+        │                    │   equilibrium)  │
         │                    └────────┬────────┘
         │                             │ x₀
         ▼                             ▼
@@ -85,10 +85,10 @@ The simulation pipeline has four stages:
  │  • Component structs with parameters     │
  │  • dx/dt = f(x, V) per component         │
  │  • DAE residual: F(t, y, ẏ) = 0          │
- │  • Full Y-bus (no Kron reduction)         │
- │  • SUNDIALS IDA solver integration        │
- │  • Fault event injection / topology swap  │
- │  • CSV recording of all observables       │
+ │  • Full Y-bus (no Kron reduction)        │
+ │  • SUNDIALS IDA solver integration       │
+ │  • Fault event injection / topology swap │
+ │  • CSV recording of all observables      │
  └──────────────────┬───────────────────────┘
                     │
                     ▼
