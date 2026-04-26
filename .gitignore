@@ -9,7 +9,7 @@
 *.fls
 
 # Ignore build directories
-outputs/
+# outputs/
 *.exe
 *.synctex.gz
 *.synctex(busy)
