@@ -62,28 +62,16 @@ interval arithmetic, passivity audits and optimisation.
 ## Accuracy
 
 PHPS against DIgSILENT PowerFactory 2022 EMT on the IEEE 39-bus system: a three-phase fault at bus 16 through 0.001 pu
-from 0.1 s to 0.2 s (shaded), exciters and governors in service in both tools. **PowerFactory is black, PHPS is orange
-dashed**; the two lie on top of each other in every panel.
+from 0.1 s to 0.2 s, exciters and governors in service in both tools.
 
 Largest differences over all ten machines and all buses: rotor angle 0.010°, speed 1.1e-6 pu, electrical torque
-0.1 % of its excursion, bus voltage 0.033 pu at the sharpest switching transient (0.04 % rms).
+0.1 % of its excursion, bus voltage 0.033 pu at the sharpest switching transient (0.04 % rms). The voltage peak at
+the faulted bus after the fault is removed is 4.190 pu in PowerFactory and 4.194 pu in PHPS.
 
-**Rotor angles**, relative to G 01:
-
-![Rotor angles, PHPS against PowerFactory EMT](docs/figures/accuracy_rotor_angle.png)
-
-**Machine speeds:**
-
-![Machine speeds, PHPS against PowerFactory EMT](docs/figures/accuracy_speed.png)
-
-**Bus voltages**, including the electromagnetic ringing at fault inception and removal:
-
-![Bus voltage magnitudes, PHPS against PowerFactory EMT](docs/figures/accuracy_bus_voltage.png)
-
-**Fault removal at 0.1 ms resolution**: electrical torques, stator fluxes and voltages through the kilohertz
-transients. The voltage peak at the faulted bus is 4.190 pu in PowerFactory and 4.194 pu in PHPS.
-
-![Torques, fluxes and voltages at fault removal, PHPS against PowerFactory EMT](docs/figures/accuracy_fault_clearing.png)
+The comparison figures are in [docs/figures/](docs/figures) (PowerFactory black, PHPS orange dashed, fault shaded):
+rotor angles (`accuracy_rotor_angle.png`), machine speeds (`accuracy_speed.png`), bus voltages
+(`accuracy_bus_voltage.png`), and torques, fluxes and voltages at fault removal at 0.1 ms resolution
+(`accuracy_fault_clearing.png`).
 
 ## Quick start
 
