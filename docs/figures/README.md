@@ -1,8 +1,8 @@
 # Accuracy: PHPS against PowerFactory EMT
 
 These figures compare PHPS's EMT simulation with **DIgSILENT PowerFactory 2022 SP1 in EMT mode** (instantaneous
-values), an established commercial simulator, on the same system and the same event. In every figure PowerFactory is
-the **black** line, PHPS the **orange dashed** line, and the fault is shaded.
+values), an established commercial simulator, on the same system and the same event. Each figure carries its own
+legend (PowerFactory solid black, PHPS orange dashed, the fault shaded) and a caption.
 
 ## The test
 
@@ -34,12 +34,12 @@ Before the fault the two tools sit at the same operating point: largest differen
 
 ## The figures
 
-| File | What it shows |
-|---|---|
-| [accuracy_rotor_angle.png](accuracy_rotor_angle.png) | rotor angle of every machine relative to G 01, over the whole run |
-| [accuracy_speed.png](accuracy_speed.png) | speed of every machine |
-| [accuracy_bus_voltage.png](accuracy_bus_voltage.png) | voltage magnitude at the faulted bus and eleven others, including the electromagnetic ringing at fault inception and removal |
-| [accuracy_fault_clearing.png](accuracy_fault_clearing.png) | a 35 ms window around fault removal at 0.1 ms resolution: electrical torques and stator fluxes of three machines, voltages at buses 16 and 17 |
+| Figure | File | What it shows |
+|---|---|---|
+| 1 | [accuracy_rotor_angle.png](accuracy_rotor_angle.png) | rotor angle of every machine relative to G 01, over the whole run |
+| 2 | [accuracy_speed.png](accuracy_speed.png) | speed of every machine |
+| 3 | [accuracy_bus_voltage.png](accuracy_bus_voltage.png) | voltage magnitude at the faulted bus and eleven others, including the electromagnetic ringing at fault inception and removal |
+| 4 | [accuracy_fault_clearing.png](accuracy_fault_clearing.png) | a 35 ms window around fault removal at 0.1 ms resolution: electrical torques and stator fluxes of three machines, voltages at buses 16 and 17 |
 
 ## The differences
 
