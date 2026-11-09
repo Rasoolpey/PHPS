@@ -1,0 +1,60 @@
+PHPS License, version 1.0
+
+Copyright (c) 2026 Rasool Peykarporsan (https://github.com/Rasoolpey/PHPS). All rights reserved,
+except the permissions this license grants.
+
+"PHPS" means the software in this repository: its source code, models, cases, data, scripts,
+documentation and logo, and any later version of it. "You" means any person or organisation that
+obtains or uses PHPS.
+
+1. Permitted use
+
+   You may download, install and run PHPS in order to build, simulate and analyse power-system
+   models with it, and you may publish the results you obtain with it (figures, data, reports,
+   theses and papers), provided you cite PHPS.
+
+2. Extensions
+
+   You may add new models, tools, cases or other files to PHPS, and change PHPS as far as that
+   requires, provided that:
+
+   a. the result is used and shared only as PHPS, under the name "PHPS", with this license and
+      this copyright notice unchanged and included in full;
+   b. the files you add or change say so (your name and the date in the file, or in a change log);
+   c. the result is not used for any commercial purpose (section 3a).
+
+   Additions offered back to this repository are welcome and are accepted under this license.
+
+3. Restrictions
+
+   a. No commercial use. You may not use PHPS, or anything made from it, for any commercial
+      purpose: in or for a product or service that is sold, licensed or offered for a fee; in paid
+      consulting, engineering or study work; or inside a for-profit company, whether or not money
+      changes hands.
+
+   b. No use of the code elsewhere. You may not copy, extract, translate or incorporate any part
+      of the source code of PHPS into any other software, library, tool or product, for any
+      purpose, commercial or not, personal or not.
+
+   c. No other name. You may not distribute, publish or offer PHPS, or any changed or extended
+      version of it, under any name other than "PHPS"; you may not remove or alter the name, logo,
+      copyright notice or this license; and you may not present PHPS or any part of it as your own
+      work or as part of another project.
+
+   d. No relicensing. You may not sublicense PHPS, or share it or any part of it under any other
+      terms.
+
+4. Other uses
+
+   Any use not permitted above, including any commercial use, needs the copyright holder's prior
+   written permission. Contact Rasool Peykarporsan through https://github.com/Rasoolpey.
+
+5. Termination
+
+   If you break any term of this license, your permissions under it end at once, without notice.
+
+6. No warranty and no liability
+
+   PHPS is provided "as is", without warranty of any kind, express or implied, including fitness
+   for a particular purpose. As far as the law allows, the copyright holder is not liable for any
+   damage or loss that arises from using PHPS or from the results it produces.

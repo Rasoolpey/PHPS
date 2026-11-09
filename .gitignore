@@ -1,0 +1,21 @@
+# Julia
+LocalPreferences.toml
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+
+# PackageCompiler system images
+/sysimage/
+*.so
+*.dll
+*.dylib
+
+# Run records (regenerable; each carries its own run.json)
+/outputs/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.cache/

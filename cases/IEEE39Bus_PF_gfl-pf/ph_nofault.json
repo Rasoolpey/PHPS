@@ -1,0 +1,13 @@
+{
+ "description": "IEEE39 with PowerFactory's GFL converter placement -- no fault, 1 s: matched unfaulted runs in both simulators (record section 41, GPT G3 item 3)",
+ "system": "system_gfl_pf.json",
+ "solver": {
+  "method": "ida",
+  "dt": 0.0005,
+  "duration": 1.0
+ },
+ "events": [],
+ "output": {
+  "directory": "outputs/ph/ieee39_gfl_pf_nofault"
+ }
+}

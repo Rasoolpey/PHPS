@@ -1,0 +1,22 @@
+{
+ "description": "IEEE39 with PowerFactory's GFM_droop converter placement -- three-phase fault at Bus 16 through 0.001 pu, 100 ms, run for 3 s (does the cores' DC flux bias decay) (droop checks, record section 27)",
+ "system": "system_gfm_droop_pf.json",
+ "solver": {
+  "method": "ida",
+  "dt": 0.0005,
+  "duration": 3.0
+ },
+ "events": [
+  {
+   "type": "BusFault",
+   "bus": 16,
+   "r": 0.001,
+   "x": 0.0,
+   "t_start": 0.1,
+   "t_duration": 0.1
+  }
+ ],
+ "output": {
+  "directory": "outputs/ph/ieee39_gfm_droop_pf_bus16_3s"
+ }
+}

@@ -1,0 +1,6 @@
+[deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
+PHPS = "b0408531-328a-4761-b3a3-8b8b208db4b0"

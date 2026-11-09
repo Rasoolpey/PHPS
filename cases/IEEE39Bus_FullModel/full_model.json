@@ -1,0 +1,18 @@
+{
+ "description": "IEEE 39-bus full model: every component physical (docs/active/FULL_MODEL_DIGITAL_TWIN_PLAN.md). Built by PHPS.phs_full_model from system.json, winding_circuits.json and these options. Baseline F0 (2026-10-29): balanced three-phase EMT network; chest wall, intercept valves, machine saturation and the zero axis follow as packages F1-F4.",
+ "system": "system.json",
+ "winding_circuits": "winding_circuits.json",
+ "network": {"model": "EMT, balanced dq, dynamic pi lines", "loads": "series_all"},
+ "exciters": {
+  "dc_shunt": {"rule": "IEEET1 with KE < 0", "n": 1.0, "field_ratio": 50.0},
+  "brushless": {"rule": "IEEET1 with KE > 0", "KC": 0.2, "KD": 0.38, "sat": [0.0, 0.0], "field_share": 0.02}
+ },
+ "steam": {
+  "paths": {"IEEEG1_2": "A", "IEEEG1_5": "A", "IEEEG1_6": "A", "IEEEG1_8": "A", "IEEEG1_9": "A",
+            "IEEEG1_3": "C", "IEEEG1_4": "C", "IEEEG1_7": "C", "IEEEG1_10": "C"},
+  "r_v": 0.95, "rh_dT": 100.0, "tau_n": 0.03, "lowflow": 0.001, "cold_reheat": 26.2,
+  "volumes": "fit", "valve": "characteristic"
+ },
+ "hydro": {"Tw": "match", "Te": 0.585, "N": 28, "fp": 0.0,
+           "note": "elastic penstock (water hammer); Te and fp labelled assumptions (PH_HYDRO_UNIT_MODEL.md); N = 28 by the reflection rule"}
+}

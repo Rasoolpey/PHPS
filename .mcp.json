@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "phps": {
+      "command": "julia",
+      "args": ["--project=mcp", "--startup-file=no", "mcp/server.jl"]
+    }
+  }
+}

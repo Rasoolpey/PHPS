@@ -1,0 +1,448 @@
+# Port passivity tools on transfer functions with known answers.
+
+@testset "port passivity tools" begin
+    # G(s) = 1/(s + 1): positive real
+    lag = PortModel("lag", ["x"], "u", "y", fill(-1.0, 1, 1), [1.0], [1.0], 0.0)
+    @test transfer(lag, 0.0) ≈ 1.0
+    @test transfer(lag, 1.0im) ≈ 0.5 - 0.5im
+    @test isempty(real_part_crossings(lag; sign = 1))
+    pc = passivity_certificate(lag; sign = 1)
+    @test pc.H0 ≈ 1.0 && !pc.nonpassive && pc.shortage == 0.0
+    @test isempty(port_zeros(lag))
+
+    # G(s) = (1 - s)/(1 + s) = 2/(s + 1) - 1: zero at +1, Re G(jw) = (1 - w^2)/(1 + w^2)
+    allpass = PortModel("allpass", ["x"], "u", "y", fill(-1.0, 1, 1), [1.0], [2.0], -1.0)
+    @test only(port_zeros(allpass)) ≈ 1.0
+    @test only(real_part_crossings(allpass; sign = 1)) ≈ 1.0 rtol = 1e-12
+    pc = passivity_certificate(allpass; sign = 1)
+    @test pc.nonpassive
+    @test pc.min_re ≈ -1.0 rtol = 1e-5
+    @test pc.shortage ≈ 1.0 rtol = 1e-5
+end
+
+@testset "loop opening at a governor" begin
+    sc = load_scenario(joinpath(ROOT, "cases", "IEEE39Bus_PF", "bus_fault_bus16_150ms.json"))
+    eq = solve_equilibrium(load_case(sc.system_path), sc)
+    sys, x, V = eq.sys, eq.x, eq.V
+    proj = physical_projection(sys, x, V)
+    ins, _ = component_io(sys, x, V)
+    k = findfirst(c -> PHPS.name(c) == "IEEEG1_4", sys.comps)
+    r = sys.offsets[k]:(sys.offsets[k] + nstates(sys.comps[k]) - 1)
+    mg = port_model(sys.comps[k], x[r], ins[k]; input = "omega", output = "Tm")
+    mr = loop_port_model(sys, x, V, k; input = "omega", output = "Tm", projection = proj)
+    @test size(mr.A, 1) == size(proj.basis, 2) - length(mg.states)
+    # closing the governor and the rest again gives the full system's eigenvalues
+    lam = eigvals(proj.basis' * reduced_jacobian(sys, x, V)[proj.keep, proj.keep] * proj.basis)
+    lcl = eigvals([mr.A mr.B * mg.C'; mg.B * mr.C' mg.A])
+    @test maximum(minimum(abs.(lcl .- l)) for l in lam) <= 1e-10 * maximum(abs, lam)
+    # the frequency response equals direct solves
+    ws = [1e-3, 0.7, 1.55, 40.0]
+    @test frequency_response(mr, ws) ≈ [transfer(mr, im * w) for w in ws] rtol = 1e-10
+    @test frequency_response(mg, ws) ≈ [transfer(mg, im * w) for w in ws] rtol = 1e-12
+    # a component with more than one channel to the rest is refused
+    kg = findfirst(c -> PHPS.name(c) == "GENROU_4", sys.comps)
+    @test_throws ErrorException loop_port_model(sys, x, V, kg; input = "Tm", output = "Pe", projection = proj)
+end
+
+@testset "storages by Riccati and multi-port loop opening" begin
+    # H = -G = 1/(s + 1) is passive: a storage with dV/dt <= u y + 0.1 u^2 exists
+    m = PortModel("g", ["x"], "u", "y", fill(-1.0, 1, 1), [1.0], [-1.0], 0.0)
+    P, res = port_storage(m, 0.1)
+    @test P[1, 1] > 0 && res <= 1e-10
+    @test port_margin(m, 0.1).passes
+    # -G = 2/(s + 1): Re(-G) + 0.05 > 0 at every frequency
+    @test port_margin(PortModel("b", ["x"], "u", "y", fill(-1.0, 1, 1), [1.0], [-2.0], 0.0), 0.05).passes
+    # -G = -2/(s + 1): Re(-G) + 0.5 < 0 at low frequency, so no storage exists
+    @test_throws ErrorException port_storage(PortModel("n", ["x"], "u", "y", fill(-1.0, 1, 1), [1.0], [2.0], 0.0), 0.5)
+
+    sc = load_scenario(joinpath(ROOT, "cases", "IEEE39Bus_PF", "bus_fault_bus16_150ms.json"))
+    eq = solve_equilibrium(load_case(sc.system_path), sc)
+    sys, x, V = eq.sys, eq.x, eq.V
+    proj = physical_projection(sys, x, V)
+    ks = [findfirst(c -> PHPS.name(c) == "IEEEG1_$i", sys.comps) for i in 2:4]
+    rest, ports, T = open_loops_model(sys, x, V, ks; input = "omega", output = "Tm", projection = proj)
+    @test size(rest.B, 2) == 3 && size(rest.C, 1) == 3
+    # closing the three loops again gives the full system; so does T' A T
+    nr = size(rest.A, 1)
+    blocks = [zeros(length(p.states), 0) for p in ports]
+    Acl = rest.A
+    for (j, p) in enumerate(ports)
+        nk = length(p.states)
+        top = hcat(Acl, zeros(size(Acl, 1), nk))
+        top[1:nr, end - nk + 1:end] .= rest.B[:, j] * p.C'
+        bottom = hcat(zeros(nk, size(Acl, 2)), p.A)
+        bottom[:, 1:nr] .= p.B * rest.C[j, :]'
+        Acl = vcat(top, bottom)
+    end
+    A = reduced_jacobian(sys, x, V)[proj.keep, proj.keep]
+    lam = eigvals(proj.basis' * A * proj.basis)
+    for M in (Acl, T' * A * T)
+        l = eigvals(M)
+        @test maximum(minimum(abs.(l .- v)) for v in lam) <= 1e-10 * maximum(abs, lam)
+    end
+end
+
+@testset "terminal cut (route A)" begin
+    sc = load_scenario(joinpath(ROOT, "cases", "IEEE39Bus_PF", "bus_fault_bus16_150ms.json"))
+    eq = solve_equilibrium(load_case(sc.system_path), sc)
+    sys, x, V = eq.sys, eq.x, eq.V
+    proj = physical_projection(sys, x, V)
+    units, net = terminal_models(sys, x, V; projection = proj)
+    @test length(units) == 11 && length(net.states) == 19
+    # close the units and the network through KCL: the section's eigenvalues plus the common
+    # rotation (0) of the synchronous frame
+    nb = nbus(sys)
+    pos = Dict(b => i for (i, b) in enumerate(sys.net.bus_ids))
+    nu = sum(length(u.states) for u in units)
+    n = nu + length(net.states)
+    Ax, Bv, Cx, Kv = zeros(n, n), zeros(n, 2nb), zeros(2nb, n), copy(net.D)
+    off = 0
+    for u in units
+        k = length(u.states)
+        r = off + 1:off + k
+        vb = 2pos[u.bus] - 1:2pos[u.bus]
+        Ax[r, r] .= u.A
+        Bv[r, vb] .= u.B
+        Cx[vb, r] .+= u.C
+        Kv[vb, vb] .-= u.D
+        off += k
+    end
+    rl = nu + 1:n
+    Ax[rl, rl] .= net.A
+    Bv[rl, :] .= net.B
+    Cx[:, rl] .-= net.C
+    lam = eigvals(Ax + Bv * (Kv \ Cx))
+    lsec = eigvals(proj.basis' * reduced_jacobian(sys, x, V)[proj.keep, proj.keep] * proj.basis)
+    @test length(lam) == length(lsec) + 1
+    @test maximum(minimum(abs.(lam .- l)) for l in lsec) <= 1e-10 * maximum(abs, lsec)
+    @test minimum(abs, lam) <= 1e-10 * maximum(abs, lsec)
+end
+
+@testset "structure search (route B)" begin
+    IA = PHPS.IntervalArithmetic
+    # interval eigenvalue bound
+    @test 0.99 < verified_min_eig(IA.interval.(Matrix(Diagonal([1.0, 2.0, 3.0])))) <= 1.0
+    @test verified_min_eig(IA.interval.([1.0 2.0; 2.0 1.0])) < 0
+    # A is Hurwitz but has no diagonal Lyapunov function ((As'P + PAs)_11 = 0.2 p_1 >= 0).
+    # A hand-made dual certificate: Z >= 0 with the diagonal of AZ + ZA' positive.
+    A = [0.1 1.0; -1.0 -1.0]
+    diagonal = BitMatrix([true false; false true])
+    Z = [1.0 -0.05; -0.05 0.01]
+    c = pattern_certificate(A, diagonal, Z, zeros(2, 2))
+    @test c.infeasible
+    @test c.float_bound ≈ 0.08 / 1.01 rtol = 1e-12
+    @test 0 < c.verified_bound <= c.float_bound
+    # the full pattern: the Lyapunov-equation solution passes the rigorous check, I does not
+    Q = lyap(Matrix(A'), Matrix(1.0I, 2, 2))
+    @test verified_lyapunov(Q, A).lyapunov
+    @test !verified_lyapunov(Matrix(1.0I, 2, 2), A).lyapunov
+    @test !pattern_certificate(A, trues(2, 2), Z, zeros(2, 2)).infeasible
+    # powers of two: the scaling is exact
+    T = pow2_scaling([3.0, 1e-5, 4.4e5])
+    @test all(t -> t == exp2(round(log2(t))), diag(T))
+    B = [1.3 -2.7 0.1; 5.5 0.3 -1.1; 2.2 7.9 -3.3]
+    @test T \ B * T == [B[i, j] * T[j, j] / T[i, i] for i in 1:3, j in 1:3]
+
+    # the base case: patterns, the section map, and the dense storage
+    sc = load_scenario(joinpath(ROOT, "cases", "IEEE39Bus_PF", "bus_fault_bus16_150ms.json"))
+    eq = solve_equilibrium(load_case(sc.system_path), sc)
+    sys, x, V = eq.sys, eq.x, eq.V
+    proj = physical_projection(sys, x, V)
+    groups = state_groups(sys, proj)
+    z, U, As, ref = reference_section(sys, x, V, proj)
+    @test length(groups) == length(z) + 1 == 172
+    @test groups[ref].angle && groups[ref].component == "GENROU_1"
+    @test maximum(real, eigvals(As)) < 0
+    for kind in (:component, :unit)
+        m = storage_pattern(groups, kind)
+        @test m == m' && all(m[i, i] for i in axes(m, 1))
+        mz = section_pattern(m, U)
+        # terms with the reference angle become couplings with every rotor angle
+        ang = findall(g -> g.angle, groups[z])
+        own = findall(g -> g.unit == "GENROU_1", groups[z])
+        @test all(mz[i, j] for i in own, j in ang)
+        @test mz == mz' && all(mz[i, j] for i in 1:length(z), j in 1:length(z) if m[z[i], z[j]])
+    end
+    @test count(storage_pattern(groups, :unit)) > count(storage_pattern(groups, :component))
+    @test all(section_pattern(storage_pattern(groups, :full), U))
+    m = storage_pattern(groups, :component)
+    add_coupling!(m, groups, "GENROU_2", "GENROU_3")
+    i2 = findall(g -> g.component == "GENROU_2", groups)
+    i3 = findall(g -> g.component == "GENROU_3", groups)
+    @test all(m[i2, i3]) && all(m[i3, i2])
+    m = couple_states!(storage_pattern(groups, :unit), groups, g -> g.state == "omega", g -> g.angle)
+    iw = findall(g -> g.state == "omega", groups)
+    ia = findall(g -> g.angle, groups)
+    @test all(m[iw, ia]) && all(m[ia, iw])
+    # the dense Lyapunov solution, scaled by powers of two, passes the rigorous check
+    n = length(z)
+    Q0 = lyap(Matrix(As'), Matrix(1.0I, n, n))
+    T = pow2_scaling(diag(Q0))
+    Ass = T \ As * T
+    @test lyapunov_check(Q0, As).lyapunov
+    @test verified_lyapunov(T * Q0 * T, Ass).lyapunov
+end
+
+@testset "port-power residual audit" begin
+    sc = load_scenario(joinpath(ROOT, "cases", "IEEE39Bus_PF", "bus_fault_bus16_150ms.json"))
+    eq = solve_equilibrium(load_case(sc.system_path), sc)
+    smp = power_audit_samples(eq.sys, eq.x, eq.V; n_random = 3)
+    a = port_power_audit(eq.sys, smp)
+    id = a["identities_max_error"]
+    @test id["network_balance"] < 1e-11 && id["kcl_residual_power"] < 1e-10
+    @test id["machine_terminal"] < 1e-11 && id["machine_Pe_vs_terminal"] < 1e-11
+    @test id["load_declared_vs_drawn"] < 1e-9           # Python PHPS's 12-digit load constants
+    bt = a["by_type"]
+    # the one-way reservoirs are lossless accounts: supply equals the storage rate exactly
+    for t in ("IEEEG1_PHTRUE", "IEEEG3_PHTRUE", "IEEET1_PHTRUE")
+        @test bt[t]["complete"] && abs(bt[t]["residual_min"]) < 1e-9 && abs(bt[t]["residual_max"]) < 1e-9
+    end
+    # machines: the swing equation and the terminal balance close exactly; the residual
+    # against the physical kinetic storage is all magnetic
+    for t in ("GENROU_PHTRUE", "GENSAL_PHTRUE")
+        @test max(abs(bt[t]["mechanical_residual_min"]), abs(bt[t]["mechanical_residual_max"])) < 1e-10
+        @test max(abs(bt[t]["terminal_residual_min"]), abs(bt[t]["terminal_residual_max"])) < 1e-10
+        @test bt[t]["residual_physical_kinetic_min"] ≈ bt[t]["magnetic_residual_min"] atol = 1e-10
+    end
+    # at the equilibrium the storage is at rest and every machine dissipates (field losses)
+    at_eq = a["per_sample"][1]["components"]
+    @test all(d -> abs(d["storage_rate"]) < 1e-9, at_eq)
+    @test all(d -> d["magnetic_residual"] > 0, filter(d -> haskey(d, "magnetic_residual"), at_eq))
+    @test !bt["COMPLEXLOAD"]["complete"]                 # its contract port is not an expression
+    # GENROU's rotor as a linear port system: the form matches the model, the field port is
+    # colocated, the balance closes with the stator-exchange port, and the rotor loss matrix
+    # is proved positive definite (the magnetic residual is exchange, not creation)
+    @test id["rotor_model"] < 1e-12 && id["field_colocation"] < 1e-12 && id["rotor_identity"] < 1e-12
+    g = bt["GENROU_PHTRUE"]
+    @test g["rotor_loss_matrix_min_eig_lower_bound"] > 0 && g["rotor_loss_min"] > 0
+    rows = [d for smp in a["per_sample"] for d in smp["components"] if haskey(d, "rotor_loss")]
+    @test length(rows) == 10 * length(smp)
+    @test all(d -> abs(d["magnetic_residual"] - (d["rotor_loss"] - d["stator_exchange"])) < 1e-12, rows)
+    @test rotor_structure(eq.sys.comps[findfirst(c -> model_type(c) == "GENSAL_PHTRUE", eq.sys.comps)]) === nothing
+    # a fault-on KCL solve: the voltages differ from the healthy ones and satisfy the fault KCL
+    Vf = solve_network(eq.sys, eq.x, eq.V; faults_on = true)
+    @test maximum(abs, dae_residual(eq.sys, eq.x, Vf; faults_on = true)[2]) < 1e-10
+    @test maximum(abs, Vf .- eq.V) > 1e-2
+end
+
+@testset "stator exchange through the KCL branch" begin
+    sc = load_scenario(joinpath(ROOT, "cases", "IEEE39Bus_PF", "bus_fault_bus16_150ms.json"))
+    eq = solve_equilibrium(load_case(sc.system_path), sc)
+    # current-corrected rotor coordinates: no damper current and field power = loss at rest
+    rc = rotor_current_coordinates(eq.sys, eq.x, eq.V)
+    @test length(rc) == 10
+    @test all(r -> maximum(abs, r.Qw[2:4]) < 1e-12 && abs(r.field_supply - r.loss) < 1e-12, values(rc))
+    @test all(r -> r.i_fd_runtime != r.i_fd_energy, values(rc))     # the runtime i_fd is unchanged
+    # the KCL branch derivatives through kcl_solve match finite differences
+    m = section_model(eq; scale = :none)
+    n = PHPS.neta(m)
+    u = normalize(randn(Random.Xoshiro(8), n))
+    h = 1e-6
+    fd = (exchange_one_form(m, h .* u) .- exchange_one_form(m, -h .* u)) ./ (2h)
+    ad = ForwardDiff.derivative(t -> exchange_one_form(m, t .* u), 0.0)
+    @test norm(ad - fd) <= 1e-6 * norm(ad)
+    # the one-form is not exact, on the lossless variant too, and its curl has the closed form
+    sysL = lossless_variant(eq.sys)
+    @test iszero(sysL.G) && iszero(sysL.load.G)
+    VL = solve_network(sysL, eq.x, eq.V)
+    for (sys, V0) in ((eq.sys, eq.V), (sysL, VL))
+        r = one_form_exactness(m, zeros(n); sys, V0, pairs = 1, seed = 5)
+        @test r.curl > 1e-2
+        W = exchange_curl(m, zeros(n); sys, V0)
+        rng = Random.Xoshiro(5)
+        uu, vv = normalize(randn(rng, n)), normalize(randn(rng, n))
+        @test only(r.pairs).vJu - only(r.pairs).uJv ≈ dot(vv, W * uu) rtol = 1e-8
+    end
+end
+
+@testset "joint machine storage: gauge family and quotient Hessian" begin
+    sc = load_scenario(joinpath(ROOT, "cases", "IEEE39Bus_PF", "bus_fault_bus16_150ms.json"))
+    eq = solve_equilibrium(load_case(sc.system_path), sc)
+    sys, V0 = eq.sys, eq.V
+    # the gauge family differs by the exact scalar F = sum I'D'QD I / 2
+    F = 0.0
+    I = PHPS._stator_currents(sys, eq.x, V0)
+    for (u, (rs, _)) in enumerate(PHPS._linear_rotors(sys))
+        Di = -(rs.A \ rs.Bs) * I[2u-1:2u]
+        F += dot(Di, rs.Q * Di) / 2
+    end
+    @test rotor_energy(sys, eq.x, V0; alpha = 0.0) - rotor_energy(sys, eq.x, V0; alpha = 1.0) ≈ F rtol = 1e-12
+    @test rotor_energy(sys, eq.x, V0) >= 0
+    # quotient Hessian of the shifted kinetic storage: 2H on the 11 speeds, nothing else
+    m = section_model(eq; scale = :none)
+    r = quotient_hessian(m, x -> shifted_kinetic_energy(sys, x))
+    @test r.positive == 11 && r.negative == 0 && r.zero == PHPS.neta(m) - 11
+end
+
+@testset "polar network balance" begin
+    sc = load_scenario(joinpath(ROOT, "cases", "IEEE39Bus_PF", "bus_fault_bus16_150ms.json"))
+    eq = solve_equilibrium(load_case(sc.system_path), sc)
+    sys = eq.sys
+    smp = power_audit_samples(sys, eq.x, eq.V; n_random = 2)
+    for s in smp[2:end]
+        r = polar_balance(sys, s.x, s.V)
+        # the susceptance potential's rate is the polar supply with pairs (P, theta), (Q, ln|V|)
+        @test abs(r["lossless_identity_error"]) <= 1e-10 * max(1.0, abs(r["Udot"]))
+        @test abs(r["conductance_closed_form_error"]) <= 1e-10 * max(1.0, abs(r["conductance_rate"]))
+        for d in values(r["machines"])
+            @test abs(d["supply_vs_transformer"]) < 1e-12
+            @test d["mismatch"] ≈ d["exchange"] - d["polar_supply"]
+        end
+    end
+    C = conductance_curl(sys)
+    @test C ≈ -C' && maximum(abs, C) > 1
+    @test iszero(conductance_curl(lossless_variant(sys)))
+end
+
+@testset "GENROU gradient-flow metric (two-axis strain-energy structure)" begin
+    sc = load_scenario(joinpath(ROOT, "cases", "IEEE39Bus_PF", "bus_fault_bus16_150ms.json"))
+    eq = solve_equilibrium(load_case(sc.system_path), sc)
+    units = [rotor_structure(c) for c in eq.sys.comps if rotor_structure(c) !== nothing]
+    @test length(units) == 10
+    for rs in units
+        g = rotor_gradient_metric(rs)
+        @test g.metric_positive && g.convex
+        @test g.residual < 1e-12 && g.asymmetry < 1e-9 * maximum(abs, g.M * rs.A)
+        # the rotor energy of this structure is not Python PHPS's declared magnetic storage
+        @test norm(g.U / norm(g.U) - rs.Q / norm(rs.Q)) > 1e-3
+    end
+end
+
+@testset "joint strain-energy identity (GENROU and GENSAL)" begin
+    sc = load_scenario(joinpath(ROOT, "cases", "IEEE39Bus_PF", "bus_fault_bus16_150ms.json"))
+    eq = solve_equilibrium(load_case(sc.system_path), sc)
+    sys = eq.sys
+    units = [strain_rotor(c) for c in sys.comps if strain_rotor(c) !== nothing]
+    @test length(units) == 11                      # 10 GENROU and the GENSAL
+    for sr in units
+        g = strain_metric(sr)
+        @test g.metric_positive && g.convex && g.residual < 1e-12
+    end
+    # the GENROU case is rotor_gradient_metric
+    c = first(c for c in sys.comps if c isa PHPS.GENROU_PHTRUE)
+    @test strain_metric(strain_rotor(c)).M ≈ rotor_gradient_metric(rotor_structure(c)).M
+    sysL = lossless_variant(sys)
+    smp = power_audit_samples(sys, eq.x, eq.V; n_random = 2)
+    for s in smp
+        rL = strain_balance(sysL, s.x, solve_network(sysL, s.x, s.V))
+        r = strain_balance(sys, s.x, s.V)
+        for q in (rL, r)
+            @test abs(q["identity_error"]) <= 1e-10 * max(1.0, abs(q["rate"]))
+            @test q["torque_error"] < 1e-12 && q["structure_error"] < 1e-12
+        end
+        # lossless: beyond the gradient structure only speed voltage and load lag remain
+        @test rL["conductance"] == 0 && abs(rL["active_load"]) < 1e-14
+        @test rL["paper_residual"] ≈ rL["speed_rotor"] + rL["speed_network"] + rL["load_lag"] + rL["saturation"] atol = 1e-10
+    end
+    # at the equilibrium (omega = 1) the speed-voltage terms vanish
+    r0 = strain_balance(sys, eq.x, eq.V)
+    @test abs(r0["speed_rotor"]) < 1e-14 && abs(r0["speed_network"]) < 1e-14
+end
+
+@testset "ComplexLoad lag across the voltage band (_strain_factors vs _complexload_reactive)" begin
+    # regression for the 2026-10-08 correction: the lag argument is K(v) - ln s with the band-extended
+    # K of `_load_band_K` (K = ln v only inside the band); Bench3's loads have the band 0.8..1.2 and t1 > 0
+    sc = load_scenario(joinpath(ROOT, "cases", "Bench3_RMS", "no_fault.json"))
+    eq = solve_equilibrium(load_case(sc.system_path), sc)
+    sys = eq.sys
+    loads = [(k, c) for (k, c) in enumerate(sys.comps) if c isa PHPS.COMPLEXLOAD]
+    @test length(loads) == 2
+    for (l, (k, c)) in enumerate(loads)
+        p = c.p
+        @test p.t1 > 0.0 && p.has_band
+        b = sys.inj[k][1]
+        xk = eq.x[PHPS._state_range(sys, k)]
+        dq = p.Q0_c * p.kqv_c * (1.0 + xk[1] / p.Vini_c)^(p.kqv_c - 1) / p.Vini_c
+        v0 = sqrt(eq.V[2b-1]^2 + eq.V[2b]^2)
+        for v in (0.5 * p.udmin_c, 0.95 * p.udmin_c, 1.0, 1.05 * p.udmax_c, 1.3 * p.udmax_c)
+            V = copy(eq.V); V[2b-1:2b] .*= v / v0                 # the load bus moved radially to |V| = v
+            lagarg = PHPS._strain_factors(sys, eq.x, V).lagarg[l]
+            _, lag, _, _ = PHPS._complexload_reactive(c, xk, v)
+            @test lagarg * dq ≈ lag rtol = 1e-12 atol = 1e-14
+            inband = p.udmin_c < v < p.udmax_c
+            inband && @test lagarg ≈ log(v) - log(p.Vini_c + xk[1]) rtol = 1e-12
+            inband || @test !isapprox(lagarg, log(v) - log(p.Vini_c + xk[1]); rtol = 1e-6)
+        end
+    end
+end
+
+@testset "integrable-loss variant (constant-power sinks)" begin
+    sc = load_scenario(joinpath(ROOT, "cases", "IEEE39Bus_PF", "bus_fault_bus16_150ms.json"))
+    eq = solve_equilibrium(load_case(sc.system_path), sc)
+    sysI = integrable_loss_variant(eq.sys, eq.x, eq.V)
+    @test iszero(sysI.G) && any(c -> c isa ConstantPowerSink, sysI.comps)
+    # the equilibrium is kept
+    f, g = dae_residual(sysI, eq.x, eq.V)
+    @test maximum(abs, f) < 1e-10 && maximum(abs, g) < 1e-10
+    # the sinks draw what the machines supply beyond the lossless network
+    Pg = sum(r["Te"] for r in values(strain_balance(sysI, eq.x, eq.V)["machines"]))
+    @test sum(c.p.P for c in sysI.comps if c isa ConstantPowerSink) ≈ Pg rtol = 1e-9
+    # a sink's potential has gradient -j I
+    c = first(c for c in sysI.comps if c isa ConstantPowerSink)
+    v = [1.01, 0.12]
+    gr = ForwardDiff.gradient(w -> PHPS.sink_potential(c, w[1], w[2]), v)
+    id, iq = PHPS.injection(c, nothing, v)
+    @test gr ≈ [iq, -id] rtol = 1e-12
+    # every supply is exact: the identity leaves only the speed voltage and the load lag
+    for s in power_audit_samples(sysI, eq.x, eq.V; n_random = 2)
+        r = strain_balance(sysI, s.x, s.V)
+        @test abs(r["identity_error"]) <= 1e-10 * max(1.0, abs(r["rate"]))
+        @test r["conductance"] == 0 && abs(r["active_load"]) < 1e-14
+        @test r["paper_residual"] ≈ r["speed_rotor"] + r["speed_network"] + r["load_lag"] + r["saturation"] atol = 1e-10
+    end
+    m = section_model(sysI, eq.x, eq.V; scale = :none)
+    @test PHPS.neta(m) == PHPS.neta(section_model(eq; scale = :none))
+end
+
+@testset "storage completion: pattern closure and the lift of the repair terms" begin
+    # the invariant closure: angle entries of a non-angle coordinate are all or none
+    nm = ["G1.delta", "G1.omega", "G2.delta", "G2.omega", "L.z"]
+    mk = falses(5, 5); mk[1, 5] = mk[5, 1] = true; mk[2, 4] = mk[4, 2] = true
+    cl = invariant_closure(mk, nm)
+    @test cl[3, 5] && cl[5, 3] && cl[1, 5] && !cl[1, 3] && cl[2, 4] && !cl[1, 2]
+    mk[1, 2] = mk[2, 1] = true
+    cl = invariant_closure(mk, nm)
+    @test cl[3, 2] && cl[2, 3] && !cl[1, 3] && !cl[3, 4]    # omega_1 gets every angle; no angle-angle entry yet
+    @test invariant_closure(cl, nm) == cl
+    # the lifted repair terms have the basis matrices as their Hessians
+    sc = load_scenario(joinpath(ROOT, "cases", "IEEE39Bus_PF", "bus_fault_bus16_150ms.json"))
+    eq = solve_equilibrium(load_case(sc.system_path), sc)
+    m = section_model(eq; scale = :none)
+    n = PHPS.neta(m)
+    prob = completion_problem(m; forms = (H = zeros(n, n), A = zeros(n, n)))
+    @test length(prob.units) == 11 && length(prob.field) == 10
+    @test count(u -> u.exciter != 0, prob.units) == 10 && count(u -> u.governor != 0, prob.units) == 10
+    @test count(b -> b.kind === :load_filter, prob.basis) == 19
+    rng = Random.Xoshiro(5)
+    coef = [b.nonnegative ? rand(rng) : randn(rng) for b in prob.basis]
+    Fr = zeros(n, n)
+    sol = (F = Fr, coefficients = coef)
+    scm = storage_completion(prob, sol)
+    Pb = sum(coef[j] .* prob.basis[j].matrix for j in eachindex(coef))
+    for _ in 1:3
+        v = randn(rng, n)
+        d2 = ForwardDiff.derivative(s -> ForwardDiff.derivative(u -> completion_energy(scm, u .* v).repair, s), 0.0)
+        @test d2 ≈ dot(v, Pb * v) rtol = 1e-8
+    end
+    @test abs(completion_energy(scm, zeros(n)).repair) < 1e-14
+    # the explicit-voltage form equals the KCL-solved one on the branch (section 25)
+    e1 = 1e-3 .* randn(rng, n)
+    x1 = lift(m, e1)
+    V1 = kcl_solve(m.sys, x1, m.V0)
+    @test completion_energy_state(scm, x1, V1).total ≈ completion_energy(scm, e1).total rtol = 1e-12
+    # the default 4-argument gradient hull falls back to the quadratic candidate's thin 2P
+    qc = quadratic_candidate(m)
+    @test PHPS.gradient_matrix_hull(qc, zeros(n), zeros(n), zeros(2)) == PHPS.gradient_matrix_hull(qc, zeros(n))
+    # the Weyl lower bound of SystemCandidate lies below every member of an interval matrix
+    Sm = [4.0 1.0; 1.0 3.0]
+    SI = [PHPS.ival(s - 0.2, s + 0.2) for s in Sm]
+    Lb, rho = PHPS._matrix_lower_bound(SI)
+    for _ in 1:20
+        D = 0.4 .* (rand(rng, 2, 2) .- 0.5)
+        D = (D + D') / 2
+        @test eigmin(Symmetric(Sm + D - Lb)) >= -1e-12
+    end
+    # the field cross-term: a bilinear -(xe - xe*) B_f'M (z - z*)
+    f = prob.field[1]
+    @test all(i -> haskey(Dict(m.keep[m.z[j]] => j for j in 1:n), i), vcat(f.xe, f.z))
+end

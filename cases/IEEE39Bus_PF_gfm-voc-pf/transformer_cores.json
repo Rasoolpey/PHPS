@@ -1,0 +1,19 @@
+{
+ "description": "Saturating cores on the step-up transformers of the merged VOC converters (the same transformer types in the copy ' - IBRd' as for the droop) (docs/active/PH_CONVERTER_MODEL.md, sections 20-24). Ratings are the PowerFactory types' strn times the elements' ntnum, read from project '39 Bus New England System_final - IBRd', study case GFM_droop, by pf/api/probe_transformer_types.py (outputs/pf/probe_trf_types_IBRd.json, 2026-10-16). Curve: core_curve_gmd (Haddadi et al. 2020, Table IV) on each rating.",
+ "rating_MVA": {
+  "33": 800.0,
+  "36": 700.0,
+  "37": 700.0,
+  "38": 1000.0
+ },
+ "types": {
+  "33": "Trf Type 19 - 33 YNy0, 800 MVA, uk 11.37 %, 345/16.5 kV",
+  "34": "Trf Type 20 - 34 YNy0, 2 x 300 MVA in parallel, uk 10.81 %, 230/16.5 kV",
+  "36": "Trf Type 23 - 36 YNy0, 700 MVA, uk 19.04 %, 345/16.5 kV",
+  "37": "Trf Type 25 - 37 YNy0, 700 MVA, uk 16.25 %, 345/16.5 kV",
+  "38": "Trf Type 29 - 38 YNy0, 1000 MVA, uk 15.62 %, 345/16.5 kV"
+ },
+ "not_cored": {
+  "34": "Trf 20 - 34 (2 x 300 MVA) ends at bus 20, a reduced inductor-only node (series R-L load, no capacitance): a core there needs the two inductor-only nodes reduced together, not implemented (record section 24). Bus 31's converter is not merged (its load) and has no core either."
+ }
+}

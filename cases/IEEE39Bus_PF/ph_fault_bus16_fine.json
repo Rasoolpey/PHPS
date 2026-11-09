@@ -1,0 +1,22 @@
+{
+ "description": "IEEE39 PF-matched -- the fault of ph_fault_bus16.json to 0.215 s only, for a comparison sampled every 0.01 ms",
+ "system": "system_phtrue.json",
+ "solver": {
+  "method": "ida",
+  "dt": 0.0005,
+  "duration": 0.215
+ },
+ "events": [
+  {
+   "type": "BusFault",
+   "bus": 16,
+   "r": 0.001,
+   "x": 0.0,
+   "t_start": 0.1,
+   "t_duration": 0.1
+  }
+ ],
+ "output": {
+  "directory": "outputs/ph/ieee39_bus16_fine"
+ }
+}
