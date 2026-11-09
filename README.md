@@ -68,10 +68,8 @@ Largest differences over all ten machines and all buses: rotor angle 0.010°, sp
 0.1 % of its excursion, bus voltage 0.033 pu at the sharpest switching transient (0.04 % rms). The voltage peak at
 the faulted bus after the fault is removed is 4.190 pu in PowerFactory and 4.194 pu in PHPS.
 
-The comparison figures are in [docs/figures/](docs/figures) (PowerFactory black, PHPS orange dashed, fault shaded):
-rotor angles (`accuracy_rotor_angle.png`), machine speeds (`accuracy_speed.png`), bus voltages
-(`accuracy_bus_voltage.png`), and torques, fluxes and voltages at fault removal at 0.1 ms resolution
-(`accuracy_fault_clearing.png`).
+The figures, the test set-up, what was matched between the two tools and the full table of differences are in
+[docs/figures/](docs/figures/README.md).
 
 ## Quick start
 
