@@ -381,6 +381,11 @@ exciter, from its amplifier, less what it delivers to the machine's field) and t
 energy along `dx` (the vector field if `dx` is not given). `supply` is then the turbine powers,
 the field powers of machines without a physical exciter and the DC exciters' amplifier powers.
 """
+# T5: the shunt exciters' and hydro units' ledger entries from the template (`tpl_ledger_entry`) once switched on after
+# the equivalence run (`scripts/ph/template_t5_ledger.jl`); the DC sides keep the physical attribution (review 99: the
+# Norton form's split differs), the network's and machines' ledger (`phs_ledger(::PHSystem)`) its own partition
+const LEDGER_FROM_TEMPLATE = Ref(true)     # after the asserted run (outputs/ph/template/t5_ledger.log: identical trajectories, closure, scheme)
+
 function phs_ledger(cs::PHControlled, x::AbstractVector{Float64}, u::PHInput; dx = nothing)
     L = phs_ledger(cs.s, view(x, 1:cs.s.n), phs_control_inputs(cs, x, u.gf; cf = u.cf);
                    dx = dx === nothing ? nothing : view(dx, 1:cs.s.n))
@@ -393,6 +398,15 @@ function phs_ledger(cs::PHControlled, x::AbstractVector{Float64}, u::PHInput; dx
     supply = L.supply
     for j in js
         e, o = cs.exc[j], cs.xoff[j]
+        if LEDGER_FROM_TEMPLATE[] && e isa PHShuntExciter   # T5: the entry from the template's declaration
+            m = cs.s.machines[j]
+            c = ShuntExciterTemplate(e, x[o+1])
+            t = tpl_ledger_entry(c, [x[o]], [x[_ip(m)] / (2 * m.w.H), _winding_currents(m, x).ifd];
+                                 dxl = dx === nothing ? nothing : [dx[o]])
+            push!(energy, t.energy); push!(loss, t.loss); push!(port, t.port); push!(rate, t.rate); push!(tport, t.tport)
+            supply += t.port
+            continue
+        end
         q = _exc_at(cs, x, j)
         # the field flux's rate: along `dx`, or the exciter's own row (which holds no decision)
         dphi = dx === nothing ? q.flux_rate : dx[o]
@@ -420,14 +434,24 @@ function phs_ledger(cs::PHControlled, x::AbstractVector{Float64}, u::PHInput; dx
         supply += nu * q.port
     end
     for j in hs
-        # one component per hydro unit: the water column's kinetic energy, no loss (the ideal turbine),
-        # the net port (the reservoir's supply less the shaft power)
+        # one component per hydro unit: the water column's energy, the penstock's friction as its loss (the turbine
+        # is ideal), the net port (the reservoir's supply less the shaft power). Along `dx` the rate is the energy's
+        # gradient times `dx`: all flows and, for the elastic penstock, all heads (review 86, item 12)
         g, o, nu = cs.gov[j], cs.goff[j], cs.units[j]
+        if LEDGER_FROM_TEMPLATE[]                    # T5: the entry from the template's declaration
+            m = cs.s.machines[j]; xg = _gov_states(cs, x, j); n = nstates(g)
+            c = HydroPhysicalTemplate(g, nu, _hydro_gate(g, xg[3]))
+            t = tpl_ledger_entry(c, xg[4:n], [x[_ip(m)] / (2 * m.w.H)];
+                                 dxl = dx === nothing ? nothing : dx[o+3:o+n-1])
+            push!(energy, t.energy); push!(loss, t.loss); push!(port, t.port); push!(rate, t.rate); push!(tport, t.tport)
+            supply += t.port
+            continue
+        end
         q = _hydro_powers(g, _gov_states(cs, x, j))
         push!(energy, nu * q.energy)
-        push!(loss, 0.0)
+        push!(loss, nu * q.loss)
         push!(port, nu * q.port)
-        push!(rate, dx === nothing ? nu * q.rate : nu * g.GMAX * g.Tw * x[o+3] * dx[o+3])
+        push!(rate, dx === nothing ? nu * q.rate : nu * g.GMAX * _hydro_energy_rate(g, _gov_states(cs, x, j), view(dx, o:o+nstates(g)-1)))
         push!(tport, nu * q.tport)
         supply += nu * q.port
     end
@@ -873,6 +897,7 @@ function _bridge_slope!(cs::PHControlled, x0, x1, u::PHInput, h)
     for (i, cv) in enumerate(cs.s.conv)
         _sw_on(cs.conv[i]) || continue
         cs.conv[i].dc.sw.islope = (_conv_current(f1, cv) - _conv_current(f0, cv)) / h
+        cs.conv[i].dc.sw.dl === nothing || (cs.conv[i].dc.sw.dl.fresh = true)   # a new Newton iterate: run the fast side
     end
     return nothing
 end

@@ -10,3 +10,6 @@ Run them from the repository root, for example `julia --project=. scripts/full_m
 | `ph_ieee39_fault.jl` | IEEE 39-bus as one port-Hamiltonian model (balanced dq, dynamic pi lines, full-winding machines, no controllers): equilibrium, structure checks, a three-phase fault with the implicit midpoint rule, step refinement and an independent BDF run, energy by component |
 | `ph_audit.jl` | Port-Hamiltonian audit of a case at its equilibrium: storage, dissipation and port balances |
 | `run_base_fault.jl` | RMS: IEEE 39-bus base case, bus-16 fault for 150 ms, with BDF1 and IDA, and plots |
+| `analysis/export_full_model.jl` | Exports the full IEEE 39-bus EMT model for analysis tools (named states, linearisation, port-Hamiltonian matrices, stored-energy Hessian) as a JLD2 file and a CSV folder, prints the export's checks and the oscillatory modes with the devices that take part |
+| `analysis/export_component.jl` | Exports any device or group of devices (names as arguments) as its own port-Hamiltonian system: CSV files, a JLD2 file and `equations.md` with the equations written out; reports whether its ports conserve power |
+| `analysis/jump_example.jl` | An optimisation problem (JuMP) written on an exported file alone, without loading the simulator; needs an environment with JuMP, Hypatia and JLD2 |

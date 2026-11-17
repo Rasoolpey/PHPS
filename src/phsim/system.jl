@@ -106,6 +106,11 @@ end
 
 phs_nstates(m::PHMachine) = m.w.nq == 2 ? 8 : 7
 _ip(m::PHMachine) = m.offset + (m.w.nq == 2 ? 6 : 5)       # momentum
+# T5 (PH_TODO.md section 4): the machines' rows from the template (`tpl_machine_rows!`) once switched on after the
+# equivalence run (`scripts/ph/template_t5_machine.jl`); the hand-written rows in `phs_rhs!` stay as the fixture
+const MACHINE_FROM_TEMPLATE = Ref(true)     # after the asserted runs (outputs/ph/template/t5_machine.log: <= the round-off floor)
+# the network's rows (nodes, branches, shunt inductors, reduced nodes) from the template (`scripts/ph/template_t5_network.jl`)
+const NETWORK_FROM_TEMPLATE = Ref(true)     # after the asserted runs (outputs/ph/template/t5_network.log: <= the round-off floor)
 _idelta(m::PHMachine) = _ip(m) + 1
 
 """
@@ -1215,21 +1220,28 @@ function phs_rhs!(dx, s::PHSystem, x::AbstractVector, u::PHInput)
     v = f.v
     for k in s.dyn
         g = pn.G[k] + s.twG[k] + u.gf[k] + _gstat(s, f, k)
-        d = s.stationary ? f.inj[k] - g * v[k] : f.inj[k] - g * v[k] - im * pn.C[k] * v[k]
+        d = NETWORK_FROM_TEMPLATE[] ? tpl_node_row(pn.C[k], g, s.stationary, v[k], f.inj[k]) :
+            s.stationary ? f.inj[k] - g * v[k] : f.inj[k] - g * v[k] - im * pn.C[k] * v[k]
         f.z0 === nothing || (d -= get(f.z0.fdq, k, zero(d)))     # a phase-asymmetric fault at the bus
         dx[s.qidx[k]], dx[s.qidx[k]+1] = real(d), imag(d)
     end
     for (j, l) in enumerate(s.branches)
         s.bcut[j] == 0 || continue
         i = f.ib[j]
-        d = s.stationary ? v[pn.from[l]] / pn.a[l] - v[pn.to[l]] - pn.R[l] * i :
+        d = NETWORK_FROM_TEMPLATE[] ? tpl_branch_row(pn.R[l], pn.L[l], pn.a[l], s.stationary, i, v[pn.from[l]], v[pn.to[l]]) :
+            s.stationary ? v[pn.from[l]] / pn.a[l] - v[pn.to[l]] - pn.R[l] * i :
                            v[pn.from[l]] / pn.a[l] - v[pn.to[l]] - pn.R[l] * i - im * pn.L[l] * i
         dx[s.bidx[j]], dx[s.bidx[j]+1] = real(d), imag(d)
     end
     for q in s.cores                                   # a cored branch: the HV and source loops (transformer.jl)
         l, j = s.branches[q.pos], q.pos
-        dH = v[pn.from[l]] / pn.a[l] - q.R2 * f.ib[j] - im * wb * _cx(x, s.bidx[j])
-        dS = v[pn.to[l]] + q.R1 * f.isrc[j] - im * wb * _cx(x, q.xs)
+        if CORE_FROM_TEMPLATE[]                        # T5: from the template's declaration at the step's currents
+            dH, dS = tpl_core_loops(CoreTemplate(q, wb, ComplexF64(pn.a[l])), _cx(x, s.bidx[j]), _cx(x, q.xs), f.ib[j],
+                                    f.isrc[j], v[pn.from[l]], v[pn.to[l]])
+        else
+            dH = v[pn.from[l]] / pn.a[l] - q.R2 * f.ib[j] - im * wb * _cx(x, s.bidx[j])
+            dS = v[pn.to[l]] + q.R1 * f.isrc[j] - im * wb * _cx(x, q.xs)
+        end
         dx[s.bidx[j]], dx[s.bidx[j]+1] = real(dH), imag(dH)
         dx[q.xs], dx[q.xs+1] = real(dS), imag(dS)
     end
@@ -1237,6 +1249,11 @@ function phs_rhs!(dx, s::PHSystem, x::AbstractVector, u::PHInput)
     for c in s.cuts                                    # the branches of a node without a machine
         c.machine == 0 || continue
         for (a, j) in enumerate(c.pos)
+            if NETWORK_FROM_TEMPLATE[]
+                d = tpl_cut_row(c, a, c.pos, f.ib, v, s.stationary)
+                dx[s.bidx[j]], dx[s.bidx[j]+1] = real(d), imag(d)
+                continue
+            end
             d = s.stationary ? c.c[a] * v[c.far[a]] :
                                c.c[a] * v[c.far[a]] - im * wb * _cx(x, s.bidx[j])
             for (b, jb) in enumerate(c.pos)
@@ -1248,11 +1265,16 @@ function phs_rhs!(dx, s::PHSystem, x::AbstractVector, u::PHInput)
     for (j, k) in enumerate(pn.sh_bus)
         s.sidx[j] > 0 || continue
         i = f.ish[j]
-        d = s.stationary ? v[k] - s.Rsh[j] * i : v[k] - s.Rsh[j] * i - im * pn.Lsh[j] * i
+        d = NETWORK_FROM_TEMPLATE[] ? tpl_shunt_row(s.Rsh[j], pn.Lsh[j], s.stationary, i, v[k]) :
+            s.stationary ? v[k] - s.Rsh[j] * i : v[k] - s.Rsh[j] * i - im * pn.Lsh[j] * i
         dx[s.sidx[j]], dx[s.sidx[j]+1] = real(d), imag(d)
     end
     for (j, m) in enumerate(s.machines)
         w, c, o = m.w, f.mc[j], m.offset
+        if MACHINE_FROM_TEMPLATE[]                     # T5: from the template's declaration (`template.jl`)
+            tpl_machine_rows!(dx, s, m, x, c, m.cut == 0 ? v[m.node] : v[s.cuts[m.cut].far[1]], u.vf[j], u.Tm[j], u.const_power)
+            continue
+        end
         if m.cut == 0
             vdq = im * conj(c.rot) * v[m.node] / m.a
             dx[o] = real(vdq) - w.Ra * c.id + wb * c.omega * x[o+1]

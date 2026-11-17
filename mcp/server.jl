@@ -10,14 +10,14 @@ import JSON3, JLD2
 include(joinpath(@__DIR__, "common.jl"))
 
 const PROTO_IN, PROTO_OUT = stdin, stdout
-mkpath(MODELS); mkpath(RUNS)
+mkpath(MODELS); mkpath(RUNS); mkpath(EXPORTS)
 
 # ---- the worker -------------------------------------------------------------------------------------------------------
 
 mutable struct Job
     id::String
-    kind::String                 # build | run
-    target::String               # model id or run id
+    kind::String                 # build | run | export
+    target::String               # model id, run id or export id
     status::String               # queued | running | done | failed | cancelled
     created::Float64
     started::Float64
@@ -222,13 +222,17 @@ function jobtext(j::Job)
     if j.status == "running" && !isempty(j.progress)
         p = j.progress
         s *= "; simulated $(fmt(p["t"])) s of $(p["tstop"]) s, pass $(p["pass"]), wall $(round(Int, p["wall"])) s"
+    elseif j.status == "running" && j.kind == "export"
+        s *= "; building the model and its port-Hamiltonian matrices (about a minute or two)"
     elseif j.status == "running" && j.kind == "build"
         s *= "; building (the first build compiles the simulator and can take several minutes)"
     end
     j.status in ("failed", "cancelled") && (s *= ".\nReason: " * j.error)
     if j.status == "done"
         r = j.result
-        if j.kind == "build"
+        if j.kind == "export"
+            s *= ".\n" * exporttext(r)
+        elseif j.kind == "build"
             s *= ".\nModel $(r["model_id"]) built in $(r["build_seconds"]) s, $(r["states"]) states. Use operating_point or describe."
         else
             s *= ".\nRun $(r["run_id"]) finished in $(r["wall_seconds"]) s ($(r["build_seconds"]) s building, $(r["simulation_seconds"]) s simulating, $(r["steps"]) steps).\n" * digest(r["run_id"])
@@ -419,7 +423,15 @@ function t_list_runs(a, ctx)
         built = isfile(joinpath(MODELS, d, "model.json")) ? "built" : "not built"
         push!(models, "$d: $(s.preset), loads $(s.loads), lines $(s.lines), unbalance $(s.unbalance), exciters dc=$(s.dc_exciter) brushless=$(s.brushless_exciter), steam=$(s.steam), hydro=$(s.hydro) ($built)")
     end
-    return text("Models:\n" * (isempty(models) ? "none" : join(models, "\n")) * "\n\nRuns:\n" * (isempty(rows) ? "none" : join(rows, "\n")))
+    exps = String[]
+    for d in sort(readdir(EXPORTS); rev = true)
+        f = joinpath(EXPORTS, d, "export.json")
+        isfile(f) || continue
+        e = JSON3.read(read(f, String))
+        push!(exps, "$(e.export_id): model $(e.model_id), $(e.selection), $(e.states) states, $(length(e.ports)) ports")
+    end
+    return text("Models:\n" * (isempty(models) ? "none" : join(models, "\n")) * "\n\nRuns:\n" * (isempty(rows) ? "none" : join(rows, "\n")) *
+                "\n\nExports:\n" * (isempty(exps) ? "none" : join(exps, "\n")))
 end
 
 function t_signals(a, ctx)
@@ -523,6 +535,56 @@ function plot_png(rids, names, a)
     return png
 end
 
+# ---- export in port-Hamiltonian form ---------------------------------------------------------------------------------
+
+"""The summary of an export (the worker's `export.json`), in words."""
+function exporttext(r)
+    g(k) = r[k]
+    c = g("checks")
+    s = "Export $(g("export_id")) of model $(g("model_id")): $(g("selection")).\n" *
+        "$(g("states")) states, $(g("in_form")) with their row in the port-Hamiltonian form; $(length(g("ports"))) interconnection ports; $(length(g("inputs"))) external inputs.\n" *
+        "Form: rates = (J - R) efforts + Gp (efforts of the neighbouring states) + G inputs. Numbers at the operating point; " *
+        "$(g("state_dependent_entries")) of $(g("nonzero_entries")) non-zero entries change with the state (marked * in the equations).\n" *
+        "Checks: right-hand side against the simulated rates $(fmt(c["structure"]; d = 2)) of the states' scale; J skew to $(fmt(c["J_skew"]; d = 2)); " *
+        "smallest eigenvalue of R $(fmt(c["R_min"]; d = 2)) of its norm; energy shared with outside states $(fmt(c["energy_separable"]; d = 2)).\n"
+    sl = g("shared_loss_with")
+    s *= isempty(sl) ? "Every port conserves power.\n" :
+         "The selection shares loss terms with $(join(sl, ", ")): its ports to them do not conserve power; add them to the selection for a group whose ports all do.\n"
+    s *= "Files in $(g("folder")): states.csv, J.csv, R.csv, Q.csv, Gp.csv, ports.csv, G.csv, inputs.csv, A.csv, A_outside.csv, equations.md, checks.csv, model.jld2.\n" *
+         "Read parts of it with get_export (part = equations, states, ports, inputs or summary)."
+    return s
+end
+
+function t_export(a, ctx)
+    mid = checkid(a["model_id"]); model_info(mid)
+    devs = get(a, "devices", nothing)
+    devs = devs === nothing ? String[] : [d isa AbstractString ? String(d) : throw(ArgumentError("devices must be names")) for d in devs]
+    length(devs) <= 200 || throw(ArgumentError("at most 200 names in devices"))
+    kind = get(a, "kind", nothing)
+    kind === nothing || kind in ("machine", "excitation", "prime_mover", "converter", "network") ||
+        throw(ArgumentError("kind must be machine, excitation, prime_mover, converter or network"))
+    isempty(devs) || kind === nothing || throw(ArgumentError("give devices or kind, not both"))
+    eid = newid("x")
+    id = submit("export", eid, Dict{String,Any}("model_id" => mid, "export_id" => eid, "devices" => devs, "kind" => kind))
+    j = wait_job(id, Float64(something(get(a, "wait_seconds", nothing), 20)), ctx)
+    return text(jobtext(j) * (j.status in ("queued", "running") ? "\nCall job_status with job_id $(j.id) (wait_seconds up to 60) to follow it." : ""))
+end
+
+function t_get_export(a, ctx)
+    eid = checkid(a["export_id"]); d = under_out("exports", eid)
+    isfile(joinpath(d, "export.json")) || throw(ArgumentError("no export $eid; see list_runs"))
+    part = String(something(get(a, "part", nothing), "summary"))
+    part == "summary" && return text(exporttext(JSON3.read(read(joinpath(d, "export.json"), String), Dict{String,Any})))
+    file = get(Dict("equations" => "equations.md", "states" => "states.csv", "ports" => "ports.csv", "inputs" => "inputs.csv"), part, nothing)
+    file === nothing && throw(ArgumentError("part must be summary, equations, states, ports or inputs"))
+    nmax = clamp(Int(something(get(a, "max_lines", nothing), 120)), 1, 400)
+    from = max(1, Int(something(get(a, "from_line", nothing), 1)))
+    lines = readlines(joinpath(d, file)); n = length(lines)
+    sel = lines[min(from, n + 1):min(n, from + nmax - 1)]
+    return text("$(part) of export $eid, lines $from to $(from + length(sel) - 1) of $n" *
+                (from + length(sel) - 1 < n ? " (continue with from_line = $(from + length(sel)))" : "") * ":\n" * join(sel, "\n"))
+end
+
 function t_delete(a, ctx)
     rid = checkid(a["run_id"])
     d = under_out("runs", rid)
@@ -581,7 +643,18 @@ const TOOLS = [
     tool("cancel_job", "Stop a job. force = true stops the whole simulation worker (it restarts on the next request).",
          Dict{String,Any}("job_id" => P("string", "job id"), "force" => P("boolean", "stop the worker process")),
          ["job_id"], t_cancel; ann = Dict{String,Any}("destructiveHint" => true)),
-    tool("list_runs", "Built models and stored runs.", Dict{String,Any}(), String[], t_list_runs; ann = RO),
+    tool("list_runs", "Built models, stored runs and exports.", Dict{String,Any}(), String[], t_list_runs; ann = RO),
+    tool("export_model", "Export a built model, one device or a group of devices in port-Hamiltonian form at its operating point: the matrices J (lossless exchange), R (losses), Q (stored-energy Hessian), the ports to the rest of the system with their powers, the inputs, the linearisation, and the equations written out with the states' names, as CSV files, equations.md and a JLD2 file. Without devices or kind the whole model is exported. Waits up to wait_seconds, then returns a job id for job_status.",
+         Dict{String,Any}("model_id" => P("string", "model id"),
+                          "devices" => P("array", "device or state names to export together, e.g. [\"GENROU_4\", \"IEEET1_4\"]; see describe for the names"; items = Dict{String,Any}("type" => "string")),
+                          "kind" => P("string", "instead of devices: every state of one kind"; enum = ["machine", "excitation", "prime_mover", "converter", "network"]),
+                          "wait_seconds" => P("number", "how long to wait before returning (default 20)")),
+         ["model_id"], t_export),
+    tool("get_export", "Read a stored export: its summary, or lines of its equations, states, ports or inputs.",
+         Dict{String,Any}("export_id" => P("string", "export id"),
+                          "part" => P("string", "what to read (default summary)"; enum = ["summary", "equations", "states", "ports", "inputs"]),
+                          "from_line" => P("integer", "first line (default 1)"), "max_lines" => P("integer", "lines to return (default 120, at most 400)")),
+         ["export_id"], t_get_export; ann = RO),
     tool("list_signals", "The signals stored in a run, by name.",
          Dict{String,Any}("run_id" => P("string", "run id"), "include_raw_states" => P("boolean", "also list every state")),
          ["run_id"], t_signals; ann = RO),
@@ -608,6 +681,8 @@ const TOOLS = [
 const INSTRUCTIONS = """
 PHPS is an electromagnetic-transient simulator of power systems in port-Hamiltonian form. Typical use: list_cases,
 build_model, operating_point, run_simulation (with faults), then get_signals, energy_audit and plot on the stored run.
+export_model writes a built model, a device or a group of devices in port-Hamiltonian form (matrices, ports and the
+equations with the states' names) for analysis in other tools; get_export reads it back.
 Runs are slow (tens of seconds of computer time per simulated second): start with short runs (0.3-1 s); never set
 allow_long without asking the user. Report results in power-engineering terms with units and bases.
 """

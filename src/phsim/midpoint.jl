@@ -322,6 +322,17 @@ _breakpoints(faults, tstop, stops = ()) =
     sort!(unique!(vcat(0.0, Float64(tstop), [Float64(t) for t in stops if 0 < t < tstop],
                        [t for f in faults for t in (f.t_on, f.t_off, f.topen...) if isfinite(t) && 0 < t < tstop])))
 
+# the Newton-failure diagnostic (2026-11-14): when `_NEWTON_DIAG[]` is a Vector, each iteration's (it, res, F ./ sc, x1)
+# of the current step; on a failure, it and the device bridges' windows (`_DL_DIAG`) go to a file
+const _NEWTON_DIAG = Ref{Any}(nothing)
+function _newton_dump(s, t)
+    _NEWTON_DIAG[] === nothing && return
+    f = joinpath(pwd(), "outputs", "cosim", "newton_failure.jld2")
+    names = try phs_state_names(s) catch; String[] end
+    JLD2.jldsave(f; t, newton = _NEWTON_DIAG[], windows = _DL_DIAG[], names)
+    println("Newton failure diagnostic written to ", f)
+end
+
 """
     phs_simulate(s, x0, u; tstop, faults = PHFault[], stops = (), hscale = 1, h = nothing,
                  save_dt = 1e-3, grid = nothing, sample_at = nothing, monitor = nothing,
@@ -529,6 +540,7 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
             _set_frame!(ub, ps, t0 + (k - 1) * hq + hq / 2)    # the step's midpoint
             ctx = nothing
             exactmode = false                      # the step residual's own Jacobian, once the contraction stalled
+            _NEWTON_DIAG[] !== nothing && empty!(_NEWTON_DIAG[])
             res_prev = Inf
             while true
                 @. xm = (x + x1) / 2
@@ -549,8 +561,11 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
                     nfloor += 1
                     break
                 end
+                fb = _bridge_fallback!(s, it, res, res_prev)   # device-level bridges: the contraction measured (design 8.3)
                 res_prev = res
                 it += 1
+                _NEWTON_DIAG[] !== nothing && push!(_NEWTON_DIAG[], (it, res, copy(F) ./ sc, copy(x1)))
+                it > maxiter && _newton_dump(s, t0 + (k - 1) * hq)
                 it > maxiter && error("phs_simulate: Newton did not converge at t = " *
                                       "$(t0 + (k - 1) * hq) (scaled residual $res)")
                 cored && it >= 12 && (exactmode = true)
@@ -560,7 +575,7 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
                     lu_ = lu(ForwardDiff.jacobian(y -> (Fy = similar(y); _step_residual!(Fy, similar(y), s, x, y, ub,
                                                                                           frozen, hq; clock); Fy), x1))
                     njac += 1
-                elseif !exactmode && (it % 8 == 0 || (cored && _core_segments(ps, xm) != segJ))   # slow, or a segment changed
+                elseif !exactmode && (fb || it % 8 == 0 || (cored && _core_segments(ps, xm) != segJ))   # slow, a segment changed, or the fallback
                     lu_ = lu(I - (hq / 2) .* _jacobian(s, xm, ub, frozen))
                     njac += 1
                     cored && (segJ = _core_segments(ps, xm))
@@ -626,6 +641,7 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
                 end
             end
             x .= x1
+            _bridge_commit!(s)                     # device-level bridges: the accepted step's fast candidate
             _set_frame!(ub, ps, tn + hq)
             twrun && Jset!((twJk .+ twJn) ./ 2)       # the step's end lies halfway between the two midpoints
             L1 = phs_ledger(s, x, ub)

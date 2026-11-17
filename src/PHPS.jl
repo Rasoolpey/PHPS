@@ -124,13 +124,20 @@ include("phsim/system.jl")
 include("phsim/exciter.jl")
 include("phsim/steamprops.jl")
 include("phsim/steam.jl")
+include("phsim/steam_structure.jl")
 include("phsim/hydro.jl")
 include("phsim/converter.jl")
 include("phsim/control.jl")
+include("phsim/structure.jl")
+include("phsim/template.jl")
 include("phsim/midpoint.jl")
+# hooks of the device-level converter bridge, which is not part of this package: no such bridge, nothing to do
+_bridge_commit!(s) = nothing
+_bridge_fallback!(s, it, res, res_prev) = false
 include("phsim/clearing.jl")
 include("phsim/pccmanifold.jl")
 include("phsim/fullmodel.jl")
+include("phsim/export.jl")
 include("roa/ivsteam.jl")              # interval methods of the steam lookups (practical-return proof, P0)
 include("roa/ivfield.jl")              # interval methods of the field (practical-return proof, P0)
 include("roa/ivlimit.jl")              # interval methods of the limiter primitives (window certificate, 13.31)
@@ -243,9 +250,9 @@ export PhysicalNetwork, physical_network, pn_sizes, pn_incidence, pn_flows, pn_e
 export PCCSplit, PCCReduced, pcc_split, pcc_Q, pcc_rot, pcc_split3, pcc_qappend, pcc_protected, pcc_pod,
        pcc_reduced, pcc_nred, pcc_phi, pcc_project, pcc_rhs, pcc_power
 export PHSystem, PHMachine, PHCut, PHInput, PHFault, phs_resolve_clearing, PHRun, ph_system, phs_nstates, phs_state_names,
-       phs_flows, phs_rhs!, phs_rhs, phs_energy, phs_gradient, phs_matrices, phs_ledger, phs_network_mask,
+       phs_flows, phs_rhs!, phs_rhs, phs_energy, phs_gradient, phs_matrices, phs_structure, phs_structure_energy, phs_ledger, phs_network_mask,
        phs_terminal_voltage, phs_cut_voltage, phs_machine_signals, phs_phases, phs_equilibrium,
-       phs_scales, phs_step_rule, phs_frame, phs_rotate_network, phs_simulate, phs_simulate_bdf, PHControlled, phs_controlled, phs_fixed_units, phs_full_model,
+       phs_scales, phs_step_rule, phs_frame, phs_rotate_network, phs_simulate, phs_simulate_bdf, PHControlled, phs_controlled, phs_fixed_units, phs_full_model, phs_analysis_model, phs_export, phs_subsystem, phs_equations,
        phs_control_inputs, phs_control_signals, phs_modes, PHShuntExciter, PHBrushlessExciter,
        phs_write_run, phs_read_run,
        SteamTables, steam_tables, steam_sat, steam_state, steam_h_isentropic,

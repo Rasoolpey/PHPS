@@ -145,3 +145,102 @@ function tline_state(L::TLine, v1 = 0.0im, v2 = 0.0im)
     a = _tl_steady_waves(L, v1, v2)
     return TLineState(repeat(transpose(a), L.d + 2, 1), L.d + 2)
 end
+
+# ------------------------------------------------------------------------------------------------
+# The line as an explicit discrete-time system (PH_TODO.md step 2, B2). Built from the circuit relations, independently
+# of `_tl_solve`'s closed forms: at an end of a half-section u = sqrt(Zc) (a + b), Zc i = sqrt(Zc) (a - b); each junction
+# (KVL across Rj) and each end (the end resistor R / (4n) and the bus voltage) is solved numerically.
+
+"""
+    tline_history(L, s) -> X
+
+The line's state as a vector: for each channel c = 1, ..., 4n its d + 1 newest leaving waves, newest first (the ring
+buffer unrolled; entry (c - 1)(d + 1) + j + 1 is the wave left j steps ago).
+"""
+function tline_history(L::TLine, s::TLineState)
+    nb = size(s.buf, 1); m = L.d + 1
+    X = Vector{ComplexF64}(undef, 4L.n * m)
+    for c in 1:4L.n, j in 0:L.d
+        X[(c - 1) * m + j + 1] = s.buf[mod1(s.k - j, nb), c]
+    end
+    return X
+end
+
+"""
+    tline_realisation(L) -> (; A, B, C, D, P, Lr, Li, Qr, Qi, Sj, N)
+
+The line as a discrete-time linear system on its history X (`tline_history`, length N = 4n (d + 1)), with the midpoint
+bus voltages v = (v1, v2) as input and the end currents i = (i1, i2) (into the line) as output:
+
+    X+ = A X + B v,   i = C X + D v,   storage S(X) = h X' P X,   P = I_4n (x) diag(1, ..., 1, alpha) >= 0.
+
+With z = (X, v), the loss ports are lr = Lr z (sqrt(h R/(4n)) i1, sqrt(h R/(4n)) i2 and sqrt(h R/(2n)) times each
+junction current) and li = Li z (sqrt(h alpha (1 - alpha)) (x_d - x_{d+1}) per channel, the interpolation); the step's
+resistor losses are |lr|^2 = z' Qr z and its interpolation dissipation |li|^2 = z' Qi z (energies, power x h), Qr = Lr' Lr,
+Qi = Li' Li. The realisation satisfies, for every z,
+
+    S(X+) - S(X) = h Re(v' i) - |lr|^2 - |li|^2,
+
+i.e. the Hermitian matrix h ([A B]' P [A B] - diag(P, 0)) - (h / 2) (E' [C D] + [C D]' E) + Qr + Qi is zero
+(E = [0 I] picks v): an impedance-passive realisation at the ports, built from scattering delay channels and resistive
+junctions. `Sj` are the junctions' 2 x 2 scattering matrices (leaving = Sj x arriving), each a contraction.
+
+Domain (checked): Zc > 0, R >= 0, h > 0, n >= 1, d >= 2, 0 <= alpha < 1, |rho| = 1. At alpha = 0 the oldest coordinate
+of every channel is read by nothing and carries no storage (P semidefinite); it can be removed for a minimal realisation.
+"""
+function tline_realisation(L::TLine)
+    (L.Zc > 0 && L.R >= 0 && L.h > 0 && L.n >= 1 && L.d >= 2 && 0 <= L.alpha < 1 && abs(abs(L.rho) - 1) <= 1e-14) ||
+        throw(ArgumentError("tline_realisation: outside the domain Zc > 0, R >= 0, h > 0, n >= 1, d >= 2, 0 <= alpha < 1, |rho| = 1"))
+    nc = 4L.n; m = L.d + 1; N = nc * m; nz = N + 2; h = L.h
+    sz = sqrt(L.Zc); Re_ = L.R / (4L.n); Rj = L.R / (2L.n); hs = 2L.n
+    ix(c, j) = (c - 1) * m + j + 1                       # wave left j steps ago on channel c
+    # the arriving wave of channel c as a row over z: rho ((1 - alpha) x_{d-1} + alpha x_d) (j counted from 0)
+    function arrive(c)
+        r = zeros(ComplexF64, nz)
+        r[ix(c, L.d - 1)] += L.rho * (1 - L.alpha); r[ix(c, L.d)] += L.rho * L.alpha
+        return r
+    end
+    ev(k) = (r = zeros(ComplexF64, nz); r[N + k] = 1; r)
+    a = Vector{Vector{ComplexF64}}(undef, nc)             # leaving waves (rows over z)
+    # ends: unknowns (a, i), a - sqrt(Zc) i = b, sqrt(Zc) a + R/(4n) i = v - sqrt(Zc) b
+    Me = [1.0 -sz; sz Re_]
+    i_end = Vector{Vector{ComplexF64}}(undef, 2)
+    for (k, cout, cin) in ((1, 1, 2), (2, nc, nc - 1))   # end 1: channel 1 leaves, 2 arrives; end 2: 4n leaves, 4n - 1 arrives
+        b = arrive(cin)
+        sol = Me \ permutedims(hcat(b, ev(k) .- sz .* b))
+        a[cout] = sol[1, :]; i_end[k] = sol[2, :]
+    end
+    # junctions between half-sections q and q + 1: unknowns (aL, aR, r); half q's right end carries -r, half q + 1's
+    # left end +r: aL - bL = -sqrt(Zc) r, aR - bR = sqrt(Zc) r, sqrt(Zc) (aL + bL) - sqrt(Zc) (aR + bR) = Rj r
+    Mj = [1.0 0.0 sz; 0.0 1.0 -sz; sz -sz -Rj]
+    ir = Vector{Vector{ComplexF64}}(undef, hs - 1)
+    Sj = Vector{Matrix{Float64}}(undef, hs - 1)
+    for q in 1:hs - 1
+        bL = arrive(2q - 1); bR = arrive(2q + 2)
+        sol = Mj \ permutedims(hcat(bL, bR, sz .* (bR .- bL)))
+        a[2q] = sol[1, :]; a[2q + 1] = sol[2, :]; ir[q] = sol[3, :]
+        # the junction alone: leaving = Sj arriving, from the same relations with unit arriving waves
+        Sj[q] = (Mj \ [1.0 0.0; 0.0 1.0; -sz sz])[1:2, :]
+    end
+    # the shift: X+ holds each channel's new wave first, then its d older ones
+    T = zeros(ComplexF64, N, nz)
+    for c in 1:nc
+        T[ix(c, 0), :] = a[c]
+        for j in 1:L.d
+            T[ix(c, j), ix(c, j - 1)] = 1
+        end
+    end
+    K = permutedims(hcat(i_end[1], i_end[2]))
+    w = vcat(ones(L.d), L.alpha)
+    Pd = repeat(w, nc)
+    P = Diagonal(Pd)
+    # loss ports as rows over z (quantity = transpose(row) z): the resistors' and the interpolation's
+    Lr = permutedims(hcat(sqrt(h * Re_) .* i_end[1], sqrt(h * Re_) .* i_end[2], (sqrt(h * Rj) .* r for r in ir)...))
+    Li = zeros(ComplexF64, nc, nz)
+    for c in 1:nc
+        Li[c, ix(c, L.d - 1)] = sqrt(h * L.alpha * (1 - L.alpha)); Li[c, ix(c, L.d)] = -sqrt(h * L.alpha * (1 - L.alpha))
+    end
+    Qr = Lr' * Lr; Qi = Li' * Li                         # |L z|^2 = z' L' L z
+    return (; A = T[:, 1:N], B = T[:, N+1:end], C = K[:, 1:N], D = K[:, N+1:end], P, Lr, Li,
+            Qr = Hermitian(Qr), Qi = Hermitian(Qi), Sj, N)
+end
