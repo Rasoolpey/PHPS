@@ -415,12 +415,20 @@ function ph_system(sys::DAESystem; v0 = nothing, loads::Symbol = :parallel, circ
     mdata = NamedTuple[]
     # winding data of the machine(s) at bus b with the merged series x, r: the Sauer-Pai map of
     # the (combined) standard data, or the given circuit
-    function wind(b, pp, x_ext, r_ext)
+    function wind0(b, pp, x_ext, r_ext)
         circuits === nothing && return winding_machine(pp; x_ext, r_ext)
         c = circuits[b]
         return WindingMachine(c.Ll + x_ext, c.Lad, c.Laq, c.Lfd, c.L1d, c.L1q, c.Ra + r_ext, c.Rfd,
                               c.R1d, c.R1q, c.H, sys.omega_b; L2q = c.L2q,
                               R2q = c.L2q === nothing ? 0.0 : c.R2q)
+    end
+    # one base frequency: the machine's torque (`_torque`, its own omega_b) and the network's speed voltages
+    # (the system's omega_b) must use the same value for the machine's coupling to be skew (formal/claims/P10-P12.md)
+    function wind(b, pp, x_ext, r_ext)
+        w = wind0(b, pp, x_ext, r_ext)
+        isapprox(w.omega_b, sys.omega_b; rtol = 1e-12) ||
+            throw(ArgumentError("ph_system: the machine at bus $b has omega_b = $(w.omega_b), the system $(sys.omega_b)"))
+        return w
     end
     for b in gen_buses
         k = bus_index(pn.net, b)
