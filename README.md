@@ -394,6 +394,7 @@ What makes these one call each:
 | Traceable runs | each run records the case, scenario, source commit, environment, solver settings and wall time | built in: `run.json` beside the results |
 | An RMS stack on the same cases | power flow, initialisation, phasor simulation with IEEE controllers and converters | `solve_equilibrium`, `simulate_ida` |
 | Use through an AI assistant | build models, run faults, read waveforms and the energy account, and export the model or any devices in port-Hamiltonian form, through fixed, checked tools | the MCP server in `mcp/` |
+| Machine-checked mathematics | the power balance, the Dirac structure of the network, the energy-exact time step, the export's subsystem ports and every device's port-Hamiltonian form proved in Lean 4 with mathlib, no unproved steps; the properties of steam are stated hypotheses | `formal/` (`lake build`); [formal/README.md](formal/README.md) |
 
 Details: [EMT simulation](docs/emt_simulation.md), [analysis tools](docs/analysis.md).
 
