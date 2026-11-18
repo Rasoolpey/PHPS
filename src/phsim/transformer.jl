@@ -271,3 +271,7 @@ The derivative of the stored energy with respect to the clock at fixed loop flux
 rotation (record section 23, 23.1): `Re(conj(i_H) j x_H) - Re(conj(i_S) j x_S)`.
 """
 core_rotation_rate(iH, iS, xH, xS) = real(conj(iH) * im * xH) - real(conj(iS) * im * xS)
+
+# T5 (PH_TODO.md section 4): the cores' loop rows from the template (`template.jl`, `tpl_core_loops`) once switched on
+# after the equivalence run (`scripts/ph/template_t5_core.jl`); the hand-written rows in `phs_rhs!` stay as the fixture
+const CORE_FROM_TEMPLATE = Ref(true)     # after the asserted runs (outputs/ph/template/t5_core.log: trajectories identical)

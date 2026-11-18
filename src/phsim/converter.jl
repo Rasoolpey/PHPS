@@ -338,6 +338,9 @@ end
 
 # the DC side's rows: the link (c/omega_b) v' = i_b - G v - Re(m conj(ic)), the branches (cb_k/omega_b) v_k' = i_b - v_k/R_k
 function _dc_rows!(dx, g, xc, ic, omega_b)
+    # T5 (PH_TODO.md section 4): the rows from the template's declaration (`template.jl`) once switched on after the
+    # equivalence run (`scripts/ph/template_t5_dc.jl`); the hand-written rows below stay as the fixture
+    DC_FROM_TEMPLATE[] && !(_sw_on(g) && g.dc.sw.dl !== nothing) && return tpl_dc_rows!(dx, g, xc, ic, omega_b)
     q, j = g.dc, _dcidx(g)
     i_b = _battery_current(g, xc)
     if _sw_on(g)                                 # switching bridge: the step's averaged modulation and the switching sink
@@ -351,6 +354,8 @@ function _dc_rows!(dx, g, xc, ic, omega_b)
     end
     return dx
 end
+
+const DC_FROM_TEMPLATE = Ref(true)     # after the asserted runs (outputs/ph/template/t5_dc.log: trajectories <= 1.8e-13)
 
 # the DC side's stored energy: the link and the battery's branches
 _dc_energy(g, xc, omega_b) = (g.dc.c * xc[_dcidx(g)]^2 +

@@ -1,0 +1,22 @@
+{
+    "events": [
+        {
+            "t_duration": 0.1,
+            "x": 0,
+            "t_start": 0.1,
+            "r": 0.001,
+            "bus": 16,
+            "type": "BusFault"
+        }
+    ],
+    "output": {
+        "directory": "outputs/ph/full_physical/fault_bus16_3ph"
+    },
+    "solver": {
+        "duration": 1,
+        "method": "ida",
+        "dt": 0.0005
+    },
+    "description": "IEEE 39-bus full physical model: three-phase fault at bus 16 through 0.001 pu, 0.1 s to 0.2 s",
+    "system": "system.json"
+}

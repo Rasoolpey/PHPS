@@ -9,6 +9,12 @@ The full model of the case folder `dir`: `phs_controlled` with the physical exci
 `KE < 0`, brushless where `KE > 0`), the physical steam units and the physical hydro unit as `full_model.json`
 declares them, the loads as declared, PowerFactory's machine winding data from `winding_circuits.json`. `x0` is the
 operating point, `faults` the scenario's bus faults as `PHFault`s.
+
+Optional entries of `full_model.json` (absent: as before, lumped lines, no converter options, instant clearing):
+`network.lines` (`"travelling"`), `network.composite` (`mix` and `relays` of the composite loads, with
+`network.loads = "composite"`), `converters` (`Ts`, `droop_dc_reject`, `cores` as a file of the folder, `dc` the
+converters' DC side with `bridge` and `device`), `hydro.model = "torpa"` with `np` (the hydropower plant) and
+`clearing = "current_zero"`. Steam paths name IEEEG1 governors; those the case does not have are skipped.
 """
 function phs_full_model(dir::AbstractString; scenario::AbstractString = "fault_bus16_3ph.json")
     spec = JSON3.read(read(joinpath(dir, "full_model.json"), String))
@@ -23,21 +29,49 @@ function phs_full_model(dir::AbstractString; scenario::AbstractString = "fault_b
                                            Rfd = fl(v.Rfd), R1d = fl(v.R1d), R1q = fl(v.R1q), R2q = fl(v.R2q), H = fl(v.H))
     end
     eq = solve_equilibrium(case, sc)
-    kw = (; loads = Symbol(spec.network.loads), circuits)
+    nw = spec.network
+    kw = (; loads = Symbol(nw.loads), circuits)
+    haskey(nw, :lines) && (kw = (; kw..., lines = Symbol(nw.lines)))
+    if haskey(nw, :composite)
+        r = nw.composite.relays
+        relays = (; vtr1 = Float64(r.vtr1), ttr1 = Float64(r.ttr1), ftr1 = Float64(r.ftr1), vtr2 = Float64(r.vtr2),
+                  ttr2 = Float64(r.ttr2), ftr2 = Float64(r.ftr2), Tr = Float64(r.Tr), types = Tuple(Symbol.(r.types)))
+        mix = (; (Symbol(k) => Float64(v) for (k, v) in pairs(nw.composite.mix))...)
+        kw = (; kw..., composite = (; mix, relays))
+    end
+    if haskey(spec, :converters)
+        cv = spec.converters; d = cv.dc
+        dc = (; H = Float64(d.H), battery = Symbol(d.battery), soc = String(d.soc), G = Float64(d.G),
+              m_max = Float64(d.m_max), mode = Symbol(d.mode), uk = Float64(d.uk))
+        haskey(d, :bridge) && (dc = (; dc..., bridge = Symbol(d.bridge)))
+        haskey(d, :device) && (dc = (; dc..., device = getfield(@__MODULE__, Symbol(d.device))))
+        kw = (; kw..., converter_Ts = Float64(cv.Ts), converter_dc = dc, droop_dc_reject = Bool(cv.droop_dc_reject))
+        if haskey(cv, :cores)
+            cr = JSON3.read(read(joinpath(dir, String(cv.cores)), String)).rating_MVA
+            kw = (; kw..., cores = Dict(parse(Int, String(k)) => Float64(v) for (k, v) in pairs(cr)))
+        end
+    end
     cs0, _, _, _ = phs_controlled(eq; kw...)
     shunt = [e.name for e in cs0.exc if e !== nothing && e.p.KE < 0]
+    gnames = Set(g.name for g in cs0.gov if g !== nothing)
     dc, bl, st, hy = spec.exciters.dc_shunt, spec.exciters.brushless, spec.steam, spec.hydro
-    steam = (; paths = Dict(String(k) => Symbol(v) for (k, v) in pairs(st.paths)), r_v = Float64(st.r_v),
+    paths = Dict(String(k) => Symbol(v) for (k, v) in pairs(st.paths) if String(k) in gnames)
+    steam = (; paths, r_v = Float64(st.r_v),
              rh_dT = Float64(st.rh_dT), tau_n = Float64(st.tau_n), lowflow = Float64(st.lowflow),
              cold_reheat = Float64(st.cold_reheat), volumes = Symbol(st.volumes), valve = Symbol(st.valve),
              tables = steam_tables())
-    hydro = (; Tw = hy.Tw isa AbstractString ? Symbol(hy.Tw) : Float64(hy.Tw), Te = Float64(hy.Te), N = Int(hy.N),
-             fp = Float64(hy.fp))
+    hydro = if haskey(hy, :model) && String(hy.model) == "torpa"
+        (; model = :torpa, np = Int(hy.np))
+    else
+        (; Tw = hy.Tw isa AbstractString ? Symbol(hy.Tw) : Float64(hy.Tw), Te = Float64(hy.Te), N = Int(hy.N),
+         fp = Float64(hy.fp))
+    end
     cs, x0, u, _ = phs_controlled(eq; kw...,
                                   dc_exciter = (; n = Dict(k => Float64(dc.n) for k in shunt), field_ratio = Float64(dc.field_ratio)),
                                   brushless = (; KC = Float64(bl.KC), KD = Float64(bl.KD), sat = (Float64(bl.sat[1]), Float64(bl.sat[2])),
                                                field_share = Float64(bl.field_share)),
                                   steam, hydro)
-    faults = [PHFault(e.bus, e.r, e.t_start, e.t_end) for e in sc.events if e isa BusFault]
+    clr = haskey(spec, :clearing) ? Symbol(spec.clearing) : :instant
+    faults = [PHFault(e.bus, e.r, e.t_start, e.t_end; clearing = clr) for e in sc.events if e isa BusFault]
     return (; cs, x0 = collect(x0), u, eq, sc, case, faults, spec)
 end

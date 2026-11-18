@@ -1,0 +1,25 @@
+source = "cases/IEEE39Bus_PF/ph_fault_bus16.json, pf_winding_circuits, loads = :series_all, phs_controlled(hydro = (; Tw = :match)); written by scripts/realtime/hydro_extract.jl"
+
+[[unit]]
+PMAX = 1.0
+P = 2.49999999970958
+x = [0.0, 2.49999999970958, 2.49999999970958, 0.29411763877487884]
+R_base = 8.500000238418579
+name = "IEEEG3_11"
+omega = 1.0
+Tp = 0.04
+Delta = 0.2
+Tr = 10.0
+Tg = 0.05
+supply = 2.49999999970958
+GMAX = 8.500000238418579
+H = 0.9374999998910922
+UC = -0.1
+Tw = 2.550000071821802
+Pref = 0.0999999999883832
+machine = "GENROU_11"
+PMIN = 0.0
+units = 1
+Sigma = 0.04
+UO = 0.1
+Tw_case = 0.75

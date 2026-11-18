@@ -94,6 +94,9 @@ end
 The motor's equations (file header) at fluxes, momentum and terminal voltage v (network frame).
 """
 @inline function motor_rates(c::MotorCircuit, ls, l1, l2, p, v; omega_b, stationary::Bool = false)
+    # T5 (PH_TODO.md section 4): the rates from the template's declaration (`template.jl`) once switched on after the
+    # equivalence run (`scripts/ph/template_t5_motor.jl`); the hand-written rates below stay as the fixture
+    MOTOR_FROM_TEMPLATE[] && return tpl_motor_rates(MotorTemplate(c, omega_b; stationary), ls, l1, l2, p, v)
     is, i1, i2 = motor_currents(c, ls, l1, l2, omega_b)
     omega = p / (2 * c.H)
     Te = omega_b * (imag(conj(i1) * l1) + imag(conj(i2) * l2))
@@ -109,6 +112,8 @@ The motor's equations (file header) at fluxes, momentum and terminal voltage v (
     end
     return dls, dl1, dl2, Te - TL, (; is, i1, i2, omega, Te, TL)
 end
+
+const MOTOR_FROM_TEMPLATE = Ref(true)     # after the asserted runs (outputs/ph/template/t5_motor.log: trajectories <= 6.4e-13)
 
 """Stored energy: magnetic omega_b lambda^H K lambda / 2 (= Re(conj(lambda) . i) / 2) and kinetic p^2 / (4 H)."""
 function motor_energy(c::MotorCircuit, ls, l1, l2, p, omega_b)

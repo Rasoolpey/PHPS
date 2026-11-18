@@ -124,10 +124,19 @@ include("phsim/system.jl")
 include("phsim/exciter.jl")
 include("phsim/steamprops.jl")
 include("phsim/steam.jl")
+include("phsim/steam_structure.jl")
 include("phsim/hydro.jl")
+include("phsim/hydroplant.jl")
 include("phsim/converter.jl")
 include("phsim/control.jl")
+include("phsim/structure.jl")
+include("phsim/template.jl")
 include("phsim/midpoint.jl")
+include("cosim/sic_device.jl")          # the device-level SiC MOSFET (COSIM_DESIGN.md sections 4, 8.7)
+include("cosim/sic_leg.jl")             # one half-bridge leg: step, ledger, solver
+include("cosim/double_pulse.jl")        # the fine-step rule; the virtual double-pulse test (group B)
+include("cosim/device_bridge.jl")       # the device-level fast side of a switching bridge (window-held coupling)
+include("cosim/window.jl")              # window-held port coupling on a small PH pair (group A); a fast side in C
 include("phsim/clearing.jl")
 include("phsim/pccmanifold.jl")
 include("phsim/fullmodel.jl")
@@ -143,6 +152,9 @@ include("physical/steam_grid_unit.jl")
 
 
 # cached compilation of the simulation path
+# real-time implementation: the FPGA models in restricted Julia, their translator to C++ for HLS (module PHPS.RT)
+include("rt/RT.jl")
+
 include("precompile.jl")
 
 # io
@@ -243,7 +255,7 @@ export PhysicalNetwork, physical_network, pn_sizes, pn_incidence, pn_flows, pn_e
 export PCCSplit, PCCReduced, pcc_split, pcc_Q, pcc_rot, pcc_split3, pcc_qappend, pcc_protected, pcc_pod,
        pcc_reduced, pcc_nred, pcc_phi, pcc_project, pcc_rhs, pcc_power
 export PHSystem, PHMachine, PHCut, PHInput, PHFault, phs_resolve_clearing, PHRun, ph_system, phs_nstates, phs_state_names,
-       phs_flows, phs_rhs!, phs_rhs, phs_energy, phs_gradient, phs_matrices, phs_ledger, phs_network_mask,
+       phs_flows, phs_rhs!, phs_rhs, phs_energy, phs_gradient, phs_matrices, phs_structure, phs_structure_energy, phs_ledger, phs_network_mask,
        phs_terminal_voltage, phs_cut_voltage, phs_machine_signals, phs_phases, phs_equilibrium,
        phs_scales, phs_step_rule, phs_frame, phs_rotate_network, phs_simulate, phs_simulate_bdf, PHControlled, phs_controlled, phs_fixed_units, phs_full_model,
        phs_control_inputs, phs_control_signals, phs_modes, PHShuntExciter, PHBrushlessExciter,

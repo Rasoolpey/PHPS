@@ -65,7 +65,8 @@ using PHPS.PhysicalSteam
         @test minimum(values(r.entropy_productions))>=-1e-10
         @test abs(r.energy_residual)<1e-8
         @test r.torque>=0
-        (eta==0 || chi==1) && @test r.torque==0
+        # no work reaches the shaft: zero up to the round-off of the graph solve that gives the torque
+        (eta==0 || chi==1) && @test abs(r.torque)<1e-10
     end
     @test_throws DomainError LinearSteamConductance(valve=0,turbine=1)
     @test_throws DomainError LinearSteamConductance(valve=1,turbine=Inf)

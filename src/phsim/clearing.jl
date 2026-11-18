@@ -23,9 +23,10 @@ function _fault_phase_currents(s, x, u, f::PHFault, m::NTuple{3,Bool}, t)
 end
 
 # the admissible event spacing: 0 (anywhere) for lumped lines without sampled controllers
+# the grid an opening must fall on. A breaker is its own component: the sampled controllers do not constrain it (the
+# step logic splits a sampling cell at a breaker event, midpoint.jl), so with them the opening is at the zero itself;
+# travelling-wave lines keep every event on their step h
 function _event_grid(s, h, grid)
-    Tsp = _sample_period(s)
-    Tsp > 0 && return Float64(Tsp)
     grid !== nothing && return Float64(grid)
     isempty(_phys(s).tw) || return Float64(h)
     return 0.0

@@ -10,10 +10,12 @@ using Random: Xoshiro
     @test PHPS.gt(NoModes(), a, b) === false
     @test PHPS.ge(NoModes(), b, 3.0) === true
     @test_throws UndecidedBranch PHPS.gt(NoModes(), IA.interval(1.0, 3.5), b)
-    # a clamp decided on the box, and one that straddles a limit: the clamp is continuous, so on a
-    # straddling box it returns the clamped hull instead of an undecided branch (src/roa/ivlimit.jl)
+    # a clamp decided on the box, and one that straddles a limit: the clamp is continuous, so across the limit
+    # it returns the exact image (src/roa/ivlimit.jl) and counts the straddle
     @test IA.isequal_interval(PHPS.clamp_mode(NoModes(), a, 0.0, 5.0), a)
+    n0 = PHPS.IVLIMIT_STRADDLE[]
     @test IA.isequal_interval(PHPS.clamp_mode(NoModes(), a, 0.0, 1.5), IA.interval(1.0, 1.5))
+    @test PHPS.IVLIMIT_STRADDLE[] == n0 + 1
     # duals over intervals compare by their value
     d = ForwardDiff.Dual(IA.interval(2.0, 2.5), IA.interval(1.0))
     @test PHPS.gt(NoModes(), d, 1.0) === true

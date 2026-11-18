@@ -46,12 +46,22 @@ interval arithmetic, passivity audits and optimisation.
   - synchronous machines with all their rotor windings;
   - DC shunt and brushless exciters;
   - steam units with real water and steam properties (IAPWS-95), including reheat;
-  - a hydro unit with an elastic penstock;
+  - a hydro unit with an elastic penstock, and a hydropower plant with its tunnels, air-cushion surge chamber,
+    Euler-equation Francis turbines and governor;
   - grid-following and grid-forming converters (VSM, droop, VOC) with their DC side;
   - pi-section and travelling-wave lines, transformers with saturating cores;
   - static and composite loads with induction motors.
 - **Balanced and unbalanced faults.** Three-phase, phase-to-ground, phase-to-phase and two-phase-to-ground faults,
   through a zero-sequence network, cleared either at once or at each phase's current zero.
+- **A full physical IEEE 39-bus model** (`cases/IEEE39Bus_FullPhysical`): steam units, the hydropower plant, droop
+  converters with switching SiC bridges, travelling-wave lines, composite loads with relays and current-zero clearing,
+  all at once.
+- **Co-simulation through power ports** (`src/cosim/`): subsystems with their own integrators and time steps coupled
+  so that the energy they exchange is exact in the discrete model; a converter's SiC switches at device level inside
+  the grid.
+- **Real-time implementation** (`src/rt/`, module `PHPS.RT`): component models written once in a restricted form of
+  Julia that runs as the reference and is translated line by line into C++ for high-level synthesis (AMD Vitis HLS),
+  with the C++, test benches and board scripts of each FPGA block.
 - **An RMS stack** for phasor studies: power flow, initialisation, IDA and BDF simulation with IEEE controllers
   (GENROU, GENSAL, IEEET1, IEEEG1, IEEEG3) and converters.
 - **Analysis tools on the same models:** port-Hamiltonian structure and passivity audits, interval enclosures and
@@ -276,7 +286,7 @@ flowchart TD
 |---|---|
 | Machines | synchronous machines with all rotor windings (`PHMachine`), parallel units |
 | Exciters | IEEE Type-1 control law, DC shunt exciter (`PHShuntExciter`), brushless exciter with rotating rectifier (`PHBrushlessExciter`) |
-| Turbines and governors | IEEEG1 and IEEEG3 control laws; physical steam unit with IAPWS-95 properties and reheat (`PHSteamUnit`); hydro unit with elastic penstock (`PHHydroUnit`) |
+| Turbines and governors | IEEEG1 and IEEEG3 control laws; physical steam unit with IAPWS-95 properties and reheat (`PHSteamUnit`); hydro unit with elastic penstock (`PHHydroUnit`); hydropower plant with air cushion, surge tank and Euler-equation turbines (`PHHydroPlant`) |
 | Converters | grid-following (`PHGfl`), grid-forming VSM (`PHVsm`), droop (`PHDroop`), virtual oscillator (`PHVoc`), with their DC side (`PHConverterDC`) |
 | Network | pi-section and travelling-wave lines, transformers with saturating cores (`PHCore`), the zero-sequence network |
 | Loads | constant impedance (parallel or series R-L), static loads and induction motors (`PHMotor`, `PHStatic`) |
@@ -338,6 +348,8 @@ PHPS/
 │   ├── phsim/              EMT simulator
 │   ├── physical/           steam and shaft physics
 │   ├── ph/  roa/  emdq/    analysis tools
+│   ├── cosim/              co-simulation through power ports; device-level SiC switch
+│   ├── rt/                 real-time implementation: FPGA models in restricted Julia, translator to C++ (PHPS.RT)
 │   └── precompile.jl       PrecompileTools workload
 ├── ext/                    loaded only with their heavy dependency
 │   ├── PHPSJuMPExt/        Lyapunov, completion and conditioning programs (JuMP)

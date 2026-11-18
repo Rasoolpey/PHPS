@@ -121,6 +121,8 @@ mutable struct SwitchingBridge
     uacc::ComplexF64        # the applied bridge voltage integrated over the current half (network frame; the measurement)
     tacc::Float64
     islope::ComplexF64      # the converter current's rate over the current step (network frame; 0: constant)
+    modulation::Symbol      # :svpwm (min-max zero sequence, the default), :spwm (none), :dpwm1 (60-degree clamp)
+    dl::Any                 # a device-level fast side (`DeviceLevelBridge`, cosim/device_bridge.jl), or nothing
 end
 
 function SwitchingBridge(dev::SiCModule; npar::Int = 3, fc::Real = 10e3, Sr::Real, S_unit::Real = 720e3,
@@ -133,16 +135,29 @@ function SwitchingBridge(dev::SiCModule; npar::Int = 3, fc::Real = 10e3, Sr::Rea
     Ej = Sr * mva_base * 1e6 / S_unit / (mva_base * 1e6)   # N joules per unit / S_sys = Sr / S_unit
     return SwitchingBridge(dev, npar, Float64(fc), 1 / (2fc), Ru, Rl, Ipk_u / Sr, Vpk, Ej, ieps_frac * Sr,
                            Float64(omega_b), false, 0.0, [Float64[] for _ in 1:3], [Symbol[] for _ in 1:3],
-                           falses(3), 0.0, false, false, 0.0, 0.0, 0.0im, 0.0, 0.0im)
+                           falses(3), 0.0, false, false, 0.0, 0.0, 0.0im, 0.0, 0.0im, :svpwm, nothing)
 end
 
 const _LEG = (0.0, 2pi / 3, -2pi / 3)
 const BRIDGE_DROP_PIECE = Ref(false)   # (diagnostic, review 78: the drops at the piece currents instead of the midpoint's)
 
-# the leg duties of a stationary-frame modulation m (SVPWM: min-max zero sequence), clipped
-function _duties(m::Complex)
+# the leg duties of a stationary-frame modulation m, clipped; the zero sequence by the method (COSIM_DESIGN.md 8.6):
+# :svpwm the min-max sequence (the default), :spwm none, :dpwm1 the leg of largest |r_k| clamped to its rail,
+# r_0 = sign(r_j) - r_j, :dpwmmin the lowest leg clamped to the lower rail, r_0 = -1 - min r_k
+function _duties(m::Complex, modulation::Symbol = :svpwm)
     r = [real(m * cis(-a)) for a in _LEG]
-    r0 = -(maximum(r) + minimum(r)) / 2
+    r0 = if modulation === :svpwm
+        -(maximum(r) + minimum(r)) / 2
+    elseif modulation === :spwm
+        0.0
+    elseif modulation === :dpwm1
+        j = argmax(abs.(r))
+        sign(r[j]) - r[j]
+    elseif modulation === :dpwmmin                 # the lowest phase clamped to the lower rail (120-degree clamp)
+        -1.0 - minimum(r)
+    else
+        throw(ArgumentError("bridge: modulation = $modulation (:svpwm, :spwm, :dpwm1 or :dpwmmin)"))
+    end
     return [clamp((1 + rk + r0) / 2, 0.0, 1.0) for rk in r]
 end
 
@@ -178,7 +193,8 @@ first (falling) half's interior edges.
 """
 function bridge_start!(br::SwitchingBridge, m_stat::Complex, t0::Real; stationary::Bool, theta0::Real)
     br.stationary, br.theta0 = stationary, theta0
-    d = _duties(m_stat)
+    d = _duties(m_stat, br.modulation)
+    br.dl === nothing || device_start!(br.dl)
     for k in 1:3
         s0 = d[k] == 1.0
         br.tchg[k] = [Float64(t0) - 1.0]; br.schg[k] = [s0 ? :U : :L]; br.cmd[k] = s0
@@ -204,7 +220,8 @@ end
 The sample at the start of the next half (a peak after a rising half, a valley after a falling one): the right-hand-limit
 state against the commanded state (a boundary command if they differ), then the half's interior crossings (77e).
 """
-bridge_sample!(br::SwitchingBridge, m_stat::Complex; prune::Bool = true) = bridge_sample_duties!(br, _duties(m_stat); prune)
+bridge_sample!(br::SwitchingBridge, m_stat::Complex; prune::Bool = true) =
+    bridge_sample_duties!(br, _duties(m_stat, br.modulation); prune)
 
 """The sample with given leg duties (for tests of the event rules; `bridge_sample!` takes them from the modulation)."""
 function bridge_sample_duties!(br::SwitchingBridge, d::AbstractVector; prune::Bool = true)
@@ -250,11 +267,23 @@ averaged drops udrop (resistances and body diodes), the switching power psw (the
 the conduction loss pcond = -Re(udrop conj(i)) (>= 0).
 """
 function bridge_average(br::SwitchingBridge, i_net, v_dc)
+    # a device-level fast side (cosim/device_bridge.jl): its window run for the step's values; derivatives (dual numbers)
+    # from this table model, the Newton surrogate (COSIM_DESIGN.md 3.4, 8.3)
+    if br.dl !== nothing
+        typeof(real(i_net) + v_dc) === Float64 && return device_average!(br.dl, br, i_net, v_dc)
+        br.dl.use_actual && return device_dual(br.dl, br, i_net, v_dc)     # the fallback: the actual interface Jacobian
+    end
+    return bridge_average_table(br, i_net, v_dc)
+end
+
+"""The table model's step averages (`bridge_average` without a device-level fast side)."""
+function bridge_average_table(br::SwitchingBridge, i_net, v_dc)
     a, b = br.a, br.b
     h = b - a
     T = typeof(real(i_net) + v_dc)
     tm = (a + b) / 2
     m = zero(Complex{T}); ud = zero(Complex{T}); esw = zero(T)
+    fU = zeros(T, 3); fL = zeros(T, 3); fC = zeros(T, 3)   # each leg's time fractions: upper, lower, clamped (PH_TODO B3)
     dev = br.dev
     vphys = v_dc * 2 * br.Vpk                          # the DC voltage (V)
     vscale = (vphys / dev.Vref)^dev.kv                 # against the tables' 600 V
@@ -287,9 +316,9 @@ function bridge_average(br::SwitchingBridge, i_net, v_dc)
                 # -Re(udrop conj(i_mid)) is a sum of non-negative terms (review 78, item 2)
                 ikd = BRIDGE_DROP_PIECE[] ? ik : ikm
                 if st === :U
-                    m += ek * r; ud -= ek * (br.Ru * ikd) * rd
+                    m += ek * r; ud -= ek * (br.Ru * ikd) * rd; fU[k] += (tn - t) / h
                 elseif st === :L
-                    m -= ek * r; ud -= ek * (br.Rl * ikd) * rd
+                    m -= ek * r; ud -= ek * (br.Rl * ikd) * rd; fL[k] += (tn - t) / h
                 else
                     # dead time (reviews 78-78b): the pole leaves its rail p0 towards the rail pT = -sgn(i) as the phase
                     # current moves the output capacitances' charge, then the body diode clamps it; at zero current it
@@ -317,6 +346,7 @@ function bridge_average(br::SwitchingBridge, i_net, v_dc)
                               (tsm = 2 * br.npar * _qoss(dev, vphys) / max(abs(ikm) * br.Ipk, 1e-9);
                                max(0.0, (tn - tD0) - max(t - tD0, tsm)) / (tn - t))
                         ud -= ek * (sgm * vsdm * frm) * rd
+                        fC[k] += frm * (tn - t) / h
                     end
                 end
             end
@@ -340,5 +370,46 @@ function bridge_average(br::SwitchingBridge, i_net, v_dc)
     end
     psw = esw * br.npar * vscale * br.Ej / h
     pcond = -real(ud * conj(i_net))                    # = sum_k frac (2/3) (R ikm^2 + sgm vsd ikm) >= 0 exactly
-    return (; m, udrop = ud, psw, pcond)
+    return (; m, udrop = ud, psw, pcond, fU, fL, fC, rotm)
+end
+
+"""
+    bridge_structure(br, r, i_net, v_dc) -> (; m, Rac, Gsw, w, u)
+
+The bridge over the step (PH_TODO.md step 2, B3) in the form of the averaged DC side: with the step's averaged
+modulation m = r.m, the AC voltage is v_dc m - Rac i and the DC link draws Re(m conj(i)) + Gsw v_dc, where
+
+    Rac = (2/3) sum_k w_k u_k u_k',   w_k = R_u fU_k + R_l fL_k + (v_SD(|i_k|) / |i_k|) fC_k >= 0,
+    u_k = (cos phi_k, sin phi_k), phi_k = a_k - theta_mid (the leg's direction at the midpoint), i_k = u_k' i,
+    Gsw = p_sw / v_dc^2 >= 0  (v_dc > 0),
+
+built from the legs' time fractions in r (`bridge_average`; fC the clamped part of the dead time) and the device's data,
+independently of the drop's accumulation (it shares the fractions): r.udrop = -Rac i and r.pcond = i' Rac i are what a
+check compares. m enters only the lossless coupling J(m): J is skew for any m, so the current-dependent clamp direction
+and swing in m cost nothing in the power identity (m is the step's computed coefficient; over a dead-time swing in the
+synchronous frame `bridge_average` takes the swing's average position times the average rotation, an approximation of
+the waveform's average, about 1e-5 for a 300 ns swing at 60 Hz). Rac is symmetric and positive semidefinite (w_k >= 0);
+the switching energy is a DC-side sink. With the diagnostic `BRIDGE_DROP_PIECE` the drops are not of this form (refused). At i_k = 0 the diode's
+v_SD / |i| is its slope at zero (v_SD(0) = 0), where the drop vanishes anyway.
+"""
+function bridge_structure(br::SwitchingBridge, r, i_net, v_dc)
+    br.dl === nothing || throw(ArgumentError("bridge_structure: a device-level bridge has no reduced (Rac, Gsw >= 0) form " *
+                                             "(its net power includes the fast side's storage; COSIM_DESIGN.md 5, 8.9)"))
+    v_dc > 0 || throw(DomainError(v_dc, "bridge_structure: the DC voltage must be positive"))
+    BRIDGE_DROP_PIECE[] && throw(ArgumentError("bridge_structure: the diagnostic drop mode (BRIDGE_DROP_PIECE) has no such Rac"))
+    dev = br.dev
+    T = typeof(real(i_net) + v_dc)
+    Rac = zeros(T, 2, 2); w = zeros(T, 3); U = Vector{Vector{T}}(undef, 3)
+    for k in 1:3
+        uk = cis(_LEG[k]) * r.rotm                     # e^{j (a_k - theta_mid)}
+        u = [real(uk), imag(uk)]
+        ik = u[1] * real(i_net) + u[2] * imag(i_net)
+        iA = abs(ik) * br.Ipk / br.npar
+        sd = iA > 0 ? _pwl(dev.vi, dev.vv, iA) / br.Vpk / abs(ik) :
+                      (dev.vv[2] - dev.vv[1]) / (dev.vi[2] - dev.vi[1]) * br.Ipk / br.npar / br.Vpk
+        w[k] = br.Ru * r.fU[k] + br.Rl * r.fL[k] + sd * r.fC[k]
+        Rac .+= (2 / 3) * w[k] .* (u * u')
+        U[k] = u
+    end
+    return (; m = r.m, Rac, Gsw = r.psw / v_dc^2, w, u = U)
 end

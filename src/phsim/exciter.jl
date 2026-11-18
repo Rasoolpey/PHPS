@@ -148,6 +148,9 @@ The exciter's rows `[phi_f', xa', xf']` at its states `x`, the generator-bus vol
 non-windup limit.
 """
 function _exc_rhs!(dx, e::PHShuntExciter, x, vterm, Vref, omega, ifd, rec::ModeRecorder)
+    # T5 (PH_TODO.md section 4): the rows from the template's declarations (`template.jl`) once switched on after the
+    # equivalence run (`scripts/ph/template_t5_exciter.jl`); the hand-written rows below stay as the fixture
+    EXC_FROM_TEMPLATE[] && return tpl_unit_rows!(dx, ShuntExciterSignal(e), x, vterm, Vref, omega, ifd, rec)
     phi, xa, xf = x[1], x[2], x[3]
     efd = omega * _exc_x(e, phi)
     verr = Vref - vterm - e.KF * (efd - xf) / e.TF
@@ -156,6 +159,8 @@ function _exc_rhs!(dx, e::PHShuntExciter, x, vterm, Vref, omega, ifd, rec::ModeR
     dx[3] = (efd - xf) / e.TF
     return dx
 end
+
+const EXC_FROM_TEMPLATE = Ref(true)     # after the asserted runs (outputs/ph/template/t5_exciter.log: trajectories <= 2.5e-16)
 
 """
     _exc_powers(e, phi, xa, omega, ifd)

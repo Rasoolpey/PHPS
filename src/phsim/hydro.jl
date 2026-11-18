@@ -137,13 +137,27 @@ function _hydro_rhs!(dx, g::PHHydroUnit, x, omega, Pref, rec::ModeRecorder)
     gate_rate = nonwindup(rec, at_lim, xp_lim, GMIN, GMAX)
     gate_rate = outband_relax(rec, gate_rate, x[3], GMIN, GMAX, p.Tg)
     dx[3] = gate_rate
-    if g.N == 0
+    if HYDRO_FROM_TEMPLATE[]
+        # the physical rows generated from the template (PH_TODO.md T5): the governor's recorded gate decision, the
+        # unit's own rows (units = 1 here: the controlled model scales the shaft power by its units outside)
+        c = HydroPhysicalTemplate(g, 1.0, at_lim)
+        if eltype(x) === Float64 && omega isa Float64 && at_lim isa Float64
+            tpl_rows!(view(dx, 4:length(dx)), _hydro_tpl_cache(g), c, view(x, 4:length(x)), omega)
+        else                                       # dual numbers (Jacobians): the sparse specialised path (T4, review 101:
+            tpl_rows!(view(dx, 4:length(dx)), c, x[4:end], [omega])   # the dense block doubled the Jacobian's cost)
+        end
+    elseif g.N == 0
         dx[4] = (1 - _hydro_head(g, at_lim, x[4])) / g.Tw
     else
         _penstock_rhs!(dx, g, x, at_lim)
     end
     return dx
 end
+
+# T5: the hydro unit's physical rows from the template (`template.jl`) in place of the hand-written ones; switched on
+# after the equivalence run (`scripts/ph/template_t5_hydro.jl`: the full model's 0.3 s fault, trajectories within 1.1e-15,
+# the same closure); `_penstock_rhs!` stays as the independent fixture the tests compare with
+const HYDRO_FROM_TEMPLATE = Ref(true)     # after review 98's fixes and the asserted runs (outputs/ph/template/t5_hydro.log)
 
 # the elastic penstock's compliance of node k and the turbine flow at gate state `at` and turbine head `hN`
 _penstock_C(g::PHHydroUnit, k) = (g.Te^2 / g.Tw) / (k < g.N ? g.N : 2 * g.N)
@@ -189,13 +203,21 @@ function _hydro_powers(g::PHHydroUnit, x)
         fric = sum((g.fp / N) * abs(x[3+k])^3 for k in 1:N)
         supply, shaft = g.GMAX * qt, g.GMAX * hN * qt
         return (; energy = g.GMAX * E, supply, shaft, port = supply - shaft, tport = abs(supply) + abs(shaft),
-                rate = g.GMAX * (qt * (1 - hN) - fric))
+                loss = g.GMAX * fric, rate = g.GMAX * (qt * (1 - hN) - fric))
     end
     q = x[4]
     h = _hydro_head(g, _hydro_gate(g, x[3]), q)
     supply, shaft = g.GMAX * q, g.GMAX * h * q
     return (; energy = g.GMAX * g.Tw * q^2 / 2, supply, shaft, port = supply - shaft,
-            tport = abs(supply) + abs(shaft), rate = g.GMAX * q * (1 - h))
+            tport = abs(supply) + abs(shaft), loss = zero(q), rate = g.GMAX * q * (1 - h))
+end
+
+# the water column's energy rate along `dxu` (the unit's local states), per unit of GMAX: inelastic Tw q q', elastic
+# sum (Tw/N) q_k q_k' + sum C_k (h_k - 1) h_k'
+function _hydro_energy_rate(g::PHHydroUnit, x, dxu)
+    g.N == 0 && return g.Tw * x[4] * dxu[4]
+    N = g.N
+    return sum((g.Tw / N) * x[3+k] * dxu[3+k] for k in 1:N) + sum(_penstock_C(g, k) * (x[3+N+k] - 1) * dxu[3+N+k] for k in 1:N)
 end
 
 """

@@ -1,0 +1,81 @@
+{
+    "winding_circuits": "winding_circuits.json",
+    "clearing": "current_zero",
+    "network": {
+        "composite": {
+            "relays": {
+                "ttr1": 2,
+                "vtr2": 0.6,
+                "types": [
+                    "A",
+                    "B",
+                    "C"
+                ],
+                "ttr2": 0.16,
+                "ftr2": 1,
+                "ftr1": 1,
+                "Tr": 5.0e-5,
+                "vtr1": 0.8
+            },
+            "mix": {
+                "B": 0.1,
+                "A": 0.1,
+                "C": 0.1
+            }
+        },
+        "lines": "travelling",
+        "loads": "composite"
+    },
+    "exciters": {
+        "dc_shunt": {
+            "rule": "IEEET1 with KE < 0",
+            "field_ratio": 50,
+            "n": 1
+        },
+        "brushless": {
+            "sat": [
+                0,
+                0
+            ],
+            "KC": 0.2,
+            "rule": "IEEET1 with KE > 0",
+            "KD": 0.38,
+            "field_share": 0.02
+        }
+    },
+    "converters": {
+        "dc": {
+            "uk": 0.1,
+            "device": "CAB760M12HM3_125C",
+            "soc": "40-50",
+            "mode": "held",
+            "battery": "sossan",
+            "m_max": 1.1547005383792517,
+            "G": 0,
+            "bridge": "switching",
+            "H": 0.005
+        },
+        "cores": "transformer_cores.json",
+        "Ts": 5.0e-5,
+        "droop_dc_reject": true
+    },
+    "steam": {
+        "tau_n": 0.03,
+        "volumes": "fit",
+        "paths": {
+            "IEEEG1_7": "C",
+            "IEEEG1_3": "C"
+        },
+        "rh_dT": 100,
+        "r_v": 0.95,
+        "lowflow": 0.001,
+        "cold_reheat": 26.2,
+        "valve": "characteristic"
+    },
+    "description": "IEEE 39-bus full physical model: G 1 (the rest of the grid), physical steam units at buses 32 and 35, the hydropower plant at bus 30, six plants as droop converters with battery, DC link, switching SiC bridge and saturating step-up transformer; travelling-wave lines, composite loads with undervoltage relays, physical exciters, faults cleared at each phase's current zero.",
+    "system": "system.json",
+    "hydro": {
+        "np": 2,
+        "model": "torpa"
+    }
+}

@@ -322,6 +322,17 @@ _breakpoints(faults, tstop, stops = ()) =
     sort!(unique!(vcat(0.0, Float64(tstop), [Float64(t) for t in stops if 0 < t < tstop],
                        [t for f in faults for t in (f.t_on, f.t_off, f.topen...) if isfinite(t) && 0 < t < tstop])))
 
+# the Newton-failure diagnostic (2026-11-14): when `_NEWTON_DIAG[]` is a Vector, each iteration's (it, res, F ./ sc, x1)
+# of the current step; on a failure, it and the device bridges' windows (`_DL_DIAG`) go to a file
+const _NEWTON_DIAG = Ref{Any}(nothing)
+function _newton_dump(s, t)
+    _NEWTON_DIAG[] === nothing && return
+    f = joinpath(pwd(), "outputs", "cosim", "newton_failure.jld2")
+    names = try phs_state_names(s) catch; String[] end
+    JLD2.jldsave(f; t, newton = _NEWTON_DIAG[], windows = _DL_DIAG[], names)
+    println("Newton failure diagnostic written to ", f)
+end
+
 """
     phs_simulate(s, x0, u; tstop, faults = PHFault[], stops = (), hscale = 1, h = nothing,
                  save_dt = 1e-3, grid = nothing, sample_at = nothing, monitor = nothing,
@@ -379,11 +390,17 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
     ts, Xs, Vs = Float64[], Vector{Float64}[], Vector{ComplexF64}[]
     Es, Ls, Ps, Ss, Hs = Vector{Float64}[], Vector{Float64}[], Vector{Float64}[], Float64[], Float64[]
     rec = [(String(first(p)), last(p), Any[]) for p in record]     # name, function, values
+    # the running account at every saved time (recording only): the residual so far (tot[:scheme]), the energy the
+    # relay trips removed so far (tot[:switched]) and the energy moved so far (tot[:moved], the scale), each as of the
+    # last completed step: a sample inside a step (or at its end without a controller call) carries the account at
+    # that step's start, one step behind (review 108, finding 2)
+    Rt, SWt, Mt = Float64[], Float64[], Float64[]
     # (in the stationary frame every evaluation sees the frame phasor of its own time: `_set_frame!`, a no-op in the
     # synchronous frame)
     save!(t, L, xs = x) = (_set_frame!(ub, ps, t); push!(ts, t); push!(Xs, copy(xs)); push!(Vs, _bus_voltages(s, xs, ub));
                            push!(Es, L.energy); push!(Ls, L.loss); push!(Ps, L.port);
                            push!(Ss, L.supply); push!(Hs, L.H);
+                           push!(Rt, tot[:scheme]); push!(SWt, tot[:switched]); push!(Mt, tot[:moved]);
                            foreach(((_, f, vals),) -> push!(vals, f(xs, ub)), rec))
     samples = sample_at === nothing ? Float64[] : collect(Float64, sample_at)
     issorted(samples) || throw(ArgumentError("phs_simulate: sample_at must be increasing"))
@@ -397,6 +414,24 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
     segments = NamedTuple[]
     iters, njac, worst, nfloor = 0, 0, 0.0, 0
     bp = _breakpoints(faults, tstop, stops)
+    # a breaker is its own component: its events need not fall on the sampled controllers' grid. An event between two
+    # samples splits that cell: the grid points on both sides become breakpoints too, so every other segment keeps whole
+    # cells, and the partial segments call the controllers only where they end on the grid (below)
+    let Tsp = _sample_period(s)
+        if Tsp > 0
+            ongrid(t) = abs(t / Tsp - round(t / Tsp)) < 1e-6
+            extra = Float64[]
+            for b in bp
+                ongrid(b) && continue
+                push!(extra, floor(b / Tsp) * Tsp, ceil(b / Tsp) * Tsp)
+            end
+            # an added grid point within the tolerance of an event is dropped: the event (kept exactly) is then taken as
+            # on the grid, its segment ends with the controller call, and no zero-length segment arises (review 108)
+            near(g) = any(b -> abs(b - g) < 1e-6 * Tsp && b != g, bp)
+            extra = filter(g -> bp[1] <= g <= bp[end] && !near(g), extra)
+            bp = sort(unique(vcat(bp, extra)))
+        end
+    end
     x1, xm, F, fm, dprev = similar(x), similar(x), similar(x), similar(x), zeros(n)
     # travelling-wave lines (tline.jl; reviews 71-72c): one fixed step for the run, every event on its grid; the lines'
     # histories start at their steady state at the initial bus voltages and carry across segments
@@ -489,15 +524,32 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
         msub = 0
         Tsp > 0 && grid !== nothing &&
             throw(ArgumentError("phs_simulate: grid with sampled controllers is not supported (C3, finding 3)"))
+        # a partial cell (a breaker event between two samples): its steps as the cell's, the controllers called only at
+        # its end and only if that end is on the grid
+        partial = false; endcall = false
         if Tsp > 0
+            ongrid(t) = abs(t / Tsp - round(t / Tsp)) < 1e-6
             ncell = (t1 - t0) / Tsp
-            abs(ncell - round(ncell)) < 1e-6 && abs(t0 / Tsp - round(t0 / Tsp)) < 1e-6 ||
-                throw(ArgumentError("phs_simulate: the segment $t0 to $t1 s is not on the sampling grid of $Tsp s"))
             msub = max(1, ceil(Int, Tsp / hq - 1e-9))
-            nsteps = msub * round(Int, ncell)
             twrun && abs(msub * Float64(h) - Tsp) > 1e-12 &&
                 throw(ArgumentError("phs_simulate: h = $h s does not divide the sampling period $Tsp s"))
-            hq = twrun ? Float64(h) : (t1 - t0) / nsteps
+            # whole cells: both ends on the grid, counted by grid index (review 108: no zero-step sliver, no false
+            # rejection of two ends offset within the tolerance in opposite directions)
+            if ongrid(t0) && ongrid(t1)
+                ncell_i = round(Int, t1 / Tsp) - round(Int, t0 / Tsp)
+                ncell_i >= 1 || throw(ArgumentError("phs_simulate: the segment $t0 to $t1 s holds no sampling cell"))
+                nsteps = msub * ncell_i
+                hq = twrun ? Float64(h) : (t1 - t0) / nsteps
+            else
+                # the one cell it lies in, with the same on-grid rule at both ends (review 108)
+                cell0 = ongrid(t0) ? round(t0 / Tsp) : floor(t0 / Tsp)
+                cell1 = ongrid(t1) ? round(t1 / Tsp) - 1 : floor(t1 / Tsp)
+                cell0 == cell1 ||
+                    throw(ArgumentError("phs_simulate: the segment $t0 to $t1 s spans a sample of $Tsp s"))
+                partial = true; endcall = ongrid(t1)
+                nsteps = twrun ? round(Int, (t1 - t0) / Float64(h)) : max(1, ceil(Int, (t1 - t0) / (Tsp / msub) - 1e-9))
+                hq = twrun ? Float64(h) : (t1 - t0) / nsteps
+            end
         end
         A = _jacobian(s, x, ub)
         lu_ = lu(I - (hq / 2) .* A)
@@ -529,6 +581,7 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
             _set_frame!(ub, ps, t0 + (k - 1) * hq + hq / 2)    # the step's midpoint
             ctx = nothing
             exactmode = false                      # the step residual's own Jacobian, once the contraction stalled
+            _NEWTON_DIAG[] !== nothing && empty!(_NEWTON_DIAG[])
             res_prev = Inf
             while true
                 @. xm = (x + x1) / 2
@@ -549,8 +602,11 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
                     nfloor += 1
                     break
                 end
+                fb = _bridge_fallback!(s, it, res, res_prev)   # device-level bridges: the contraction measured (design 8.3)
                 res_prev = res
                 it += 1
+                _NEWTON_DIAG[] !== nothing && push!(_NEWTON_DIAG[], (it, res, copy(F) ./ sc, copy(x1)))
+                it > maxiter && _newton_dump(s, t0 + (k - 1) * hq)
                 it > maxiter && error("phs_simulate: Newton did not converge at t = " *
                                       "$(t0 + (k - 1) * hq) (scaled residual $res)")
                 cored && it >= 12 && (exactmode = true)
@@ -560,7 +616,7 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
                     lu_ = lu(ForwardDiff.jacobian(y -> (Fy = similar(y); _step_residual!(Fy, similar(y), s, x, y, ub,
                                                                                           frozen, hq; clock); Fy), x1))
                     njac += 1
-                elseif !exactmode && (it % 8 == 0 || (cored && _core_segments(ps, xm) != segJ))   # slow, or a segment changed
+                elseif !exactmode && (fb || it % 8 == 0 || (cored && _core_segments(ps, xm) != segJ))   # slow, a segment changed, or the fallback
                     lu_ = lu(I - (hq / 2) .* _jacobian(s, xm, ub, frozen))
                     njac += 1
                     cored && (segJ = _core_segments(ps, xm))
@@ -604,7 +660,7 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
             tn = t0 + (k - 1) * hq
             # a step ending on a controller call: its end is saved after the call (below), as PowerFactory
             # records the outputs of that step; the interior samples here (C3, finding 2)
-            call = msub > 0 && k % msub == 0
+            call = msub > 0 && (partial ? (endcall && k == nsteps) : k % msub == 0)
             tlast = call ? tn + hq - 1e-12 : tn + hq + 1e-15
             if isamp <= length(samples) && samples[isamp] <= tlast
                 xold .= x
@@ -626,6 +682,7 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
                 end
             end
             x .= x1
+            _bridge_commit!(s)                     # device-level bridges: the accepted step's fast candidate
             _set_frame!(ub, ps, tn + hq)
             twrun && Jset!((twJk .+ twJn) ./ 2)       # the step's end lies halfway between the two midpoints
             L1 = phs_ledger(s, x, ub)
@@ -680,6 +737,7 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
     total = (; scheme = tot[:scheme], scheme_max = tot[:scheme_max], simpson = tot[:simpson],
              throughput = tot[:throughput], moved = tot[:moved],
              switched = tot[:switched],               # energy removed by relay trips (motor units leaving the system)
+             residual_t = Rt, switched_t = SWt, moved_t = Mt,   # the running account at the saved times
              # travelling-wave lines: energy the buses gave the lines, their storage change, resistor losses and
              # interpolation dissipation, and the worst per-line step identity relative to its gross wave energy
              lines = twrun ? (; supply = twacc.supply[], dS = twacc.dS[], loss = twacc.loss[], interp = twacc.dinterp[],

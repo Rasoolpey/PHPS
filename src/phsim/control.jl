@@ -74,7 +74,7 @@ converters' controllers (`PHVsm`), which set the converters' EMFs, and their fir
 struct PHControlled
     s::PHSystem
     exc::Vector{Union{Nothing,IEEET1_PHTRUE,PHShuntExciter,PHBrushlessExciter}}
-    gov::Vector{Union{Nothing,IEEEG1_PHTRUE,IEEEG3_PHTRUE,PHSteamUnit,PHHydroUnit}}
+    gov::Vector{Union{Nothing,IEEEG1_PHTRUE,IEEEG3_PHTRUE,PHSteamUnit,PHHydroUnit,PHHydroPlant}}
     xoff::Vector{Int}
     goff::Vector{Int}
     Vref::Vector{Float64}
@@ -124,12 +124,17 @@ end
 _steam_units(cs::PHControlled) = [j for j in eachindex(cs.gov) if cs.gov[j] isa PHSteamUnit]
 _dc_converters(cs::PHControlled) = [i for i in eachindex(cs.conv) if cs.conv[i] isa Union{PHVsm,PHVoc,PHGfl,PHDroop} && cs.conv[i].dc !== nothing]
 _hydro_units(cs::PHControlled) = [j for j in eachindex(cs.gov) if cs.gov[j] isa PHHydroUnit]
+_hydro_plants(cs::PHControlled) = [j for j in eachindex(cs.gov) if cs.gov[j] isa PHHydroPlant]
+# the per-unit speed of machine j (its rotor's momentum over 2H)
+_machine_omega(cs::PHControlled, x, j) = (m = cs.s.machines[j]; x[_ip(m)] / (2 * m.w.H))
 _cnames(cs::PHControlled) = vcat(cs.s.cnames, [name(cs.exc[j]) * ".exciter" for j in _physical_exciters(cs)],
                                  [name(cs.gov[j]) * ".steam" for j in _steam_units(cs)],
                                  [name(cs.gov[j]) * ".hydro" for j in _hydro_units(cs)],
+                                 [name(cs.gov[j]) * ".hydroplant" for j in _hydro_plants(cs)],
                                  [cs.conv[i].name * ".dc" for i in _dc_converters(cs)])
 _ckind(cs::PHControlled) = vcat(cs.s.ckind, [:exciter for _ in _physical_exciters(cs)],
                                 [:steam for _ in _steam_units(cs)], [:hydro for _ in _hydro_units(cs)],
+                                [:hydro for _ in _hydro_plants(cs)],
                                 [:converter_dc for _ in _dc_converters(cs)])
 _gov_states(cs::PHControlled, x, j) = view(x, cs.goff[j]:cs.goff[j]+nstates(cs.gov[j])-1)
 
@@ -144,6 +149,7 @@ _turbine_power(cs::PHControlled, x::AbstractVector{T}, j::Int) where {T} =
     cs.gov[j] === nothing ? T(cs.u0.Tm[j]) :
     cs.gov[j] isa PHSteamUnit ? cs.units[j] * _steam_power(cs.gov[j], _gov_states(cs, x, j)) :
     cs.gov[j] isa PHHydroUnit ? cs.units[j] * _hydro_power(cs.gov[j], _gov_states(cs, x, j)) :
+    cs.gov[j] isa PHHydroPlant ? cs.units[j] * _hydro_power(cs.gov[j], _gov_states(cs, x, j), _machine_omega(cs, x, j)) :
     cs.units[j] * _controller_output(cs.gov[j], view(x, cs.goff[j]:cs.goff[j]+nstates(cs.gov[j])-1))
 
 # generator-bus voltage of machine j: the bus itself (recovered if its node was reduced), or
@@ -323,7 +329,7 @@ function _controlled_rhs!(dx, cs::PHControlled, x::AbstractVector{T}, u::PHInput
             g = cs.gov[j]
             r = cs.goff[j]:cs.goff[j]+nstates(g)-1
             _steam_rhs!(view(dx, r), g, view(x, r), c.omega, cs.Pref[j], rec(j, 2))
-        elseif cs.gov[j] isa PHHydroUnit
+        elseif cs.gov[j] isa Union{PHHydroUnit,PHHydroPlant}
             g = cs.gov[j]
             r = cs.goff[j]:cs.goff[j]+nstates(g)-1
             _hydro_rhs!(view(dx, r), g, view(x, r), c.omega, cs.Pref[j], rec(j, 2))
@@ -381,6 +387,11 @@ exciter, from its amplifier, less what it delivers to the machine's field) and t
 energy along `dx` (the vector field if `dx` is not given). `supply` is then the turbine powers,
 the field powers of machines without a physical exciter and the DC exciters' amplifier powers.
 """
+# T5: the shunt exciters' and hydro units' ledger entries from the template (`tpl_ledger_entry`) once switched on after
+# the equivalence run (`scripts/ph/template_t5_ledger.jl`); the DC sides keep the physical attribution (review 99: the
+# Norton form's split differs), the network's and machines' ledger (`phs_ledger(::PHSystem)`) its own partition
+const LEDGER_FROM_TEMPLATE = Ref(true)     # after the asserted run (outputs/ph/template/t5_ledger.log: identical trajectories, closure, scheme)
+
 function phs_ledger(cs::PHControlled, x::AbstractVector{Float64}, u::PHInput; dx = nothing)
     L = phs_ledger(cs.s, view(x, 1:cs.s.n), phs_control_inputs(cs, x, u.gf; cf = u.cf);
                    dx = dx === nothing ? nothing : view(dx, 1:cs.s.n))
@@ -388,11 +399,20 @@ function phs_ledger(cs::PHControlled, x::AbstractVector{Float64}, u::PHInput; dx
     ks = _steam_units(cs)
     hs = _hydro_units(cs)
     ds = _dc_converters(cs)
-    isempty(js) && isempty(ks) && isempty(hs) && isempty(ds) && return L
+    isempty(js) && isempty(ks) && isempty(hs) && isempty(ds) && isempty(_hydro_plants(cs)) && return L
     energy, loss, port, rate, tport = copy(L.energy), copy(L.loss), copy(L.port), copy(L.rate), copy(L.tport)
     supply = L.supply
     for j in js
         e, o = cs.exc[j], cs.xoff[j]
+        if LEDGER_FROM_TEMPLATE[] && e isa PHShuntExciter   # T5: the entry from the template's declaration
+            m = cs.s.machines[j]
+            c = ShuntExciterTemplate(e, x[o+1])
+            t = tpl_ledger_entry(c, [x[o]], [x[_ip(m)] / (2 * m.w.H), _winding_currents(m, x).ifd];
+                                 dxl = dx === nothing ? nothing : [dx[o]])
+            push!(energy, t.energy); push!(loss, t.loss); push!(port, t.port); push!(rate, t.rate); push!(tport, t.tport)
+            supply += t.port
+            continue
+        end
         q = _exc_at(cs, x, j)
         # the field flux's rate: along `dx`, or the exciter's own row (which holds no decision)
         dphi = dx === nothing ? q.flux_rate : dx[o]
@@ -420,14 +440,37 @@ function phs_ledger(cs::PHControlled, x::AbstractVector{Float64}, u::PHInput; dx
         supply += nu * q.port
     end
     for j in hs
-        # one component per hydro unit: the water column's kinetic energy, no loss (the ideal turbine),
-        # the net port (the reservoir's supply less the shaft power)
+        # one component per hydro unit: the water column's energy, the penstock's friction as its loss (the turbine
+        # is ideal), the net port (the reservoir's supply less the shaft power). Along `dx` the rate is the energy's
+        # gradient times `dx`: all flows and, for the elastic penstock, all heads (review 86, item 12)
         g, o, nu = cs.gov[j], cs.goff[j], cs.units[j]
+        if LEDGER_FROM_TEMPLATE[]                    # T5: the entry from the template's declaration
+            m = cs.s.machines[j]; xg = _gov_states(cs, x, j); n = nstates(g)
+            c = HydroPhysicalTemplate(g, nu, _hydro_gate(g, xg[3]))
+            t = tpl_ledger_entry(c, xg[4:n], [x[_ip(m)] / (2 * m.w.H)];
+                                 dxl = dx === nothing ? nothing : dx[o+3:o+n-1])
+            push!(energy, t.energy); push!(loss, t.loss); push!(port, t.port); push!(rate, t.rate); push!(tport, t.tport)
+            supply += t.port
+            continue
+        end
         q = _hydro_powers(g, _gov_states(cs, x, j))
         push!(energy, nu * q.energy)
-        push!(loss, 0.0)
+        push!(loss, nu * q.loss)
         push!(port, nu * q.port)
-        push!(rate, dx === nothing ? nu * q.rate : nu * g.GMAX * g.Tw * x[o+3] * dx[o+3])
+        push!(rate, dx === nothing ? nu * q.rate : nu * g.GMAX * _hydro_energy_rate(g, _gov_states(cs, x, j), view(dx, o:o+nstates(g)-1)))
+        push!(tport, nu * q.tport)
+        supply += nu * q.port
+    end
+    for j in _hydro_plants(cs)
+        # one component per hydropower plant: the waterway's energy, its friction, the junction and the turbines'
+        # losses, the net port (the reservoirs' supply less the shaft power); along `dx` the rate is the energy's
+        # gradient times `dx`
+        g, o, nu = cs.gov[j], cs.goff[j], cs.units[j]
+        q = _hydro_powers(g, _gov_states(cs, x, j), _machine_omega(cs, x, j))
+        push!(energy, nu * q.energy)
+        push!(loss, nu * q.loss)
+        push!(port, nu * q.port)
+        push!(rate, dx === nothing ? nu * q.rate : nu * _hydro_energy_rate(g, _gov_states(cs, x, j), view(dx, o:o+nstates(g)-1)))
         push!(tport, nu * q.tport)
         supply += nu * q.port
     end
@@ -458,6 +501,8 @@ phs_energy(cs::PHControlled, x::AbstractVector) =
     sum(cs.units[j] * sum(x[cs.goff[j]+1+2k] for k in eachindex(cs.gov[j].V)) / STEAM_SB
         for j in _steam_units(cs); init = zero(eltype(x))) +
     sum(cs.units[j] * _hydro_powers(cs.gov[j], _gov_states(cs, x, j)).energy for j in _hydro_units(cs);
+        init = zero(eltype(x))) +
+    sum(cs.units[j] * _hydro_powers(cs.gov[j], _gov_states(cs, x, j), _machine_omega(cs, x, j)).energy for j in _hydro_plants(cs);
         init = zero(eltype(x))) +
     sum(_dc_energy(cs.conv[i], view(x, cs.coff[i]:cs.coff[i]+nstates(cs.conv[i])-1), cs.s.omega_b) for i in _dc_converters(cs);
         init = zero(eltype(x)))
@@ -607,7 +652,7 @@ function phs_controlled(eq::EquilibriumResult; loads::Symbol = :parallel, circui
     f = phs_flows(s, xp, u0)
     dxp = phs_rhs(s, xp, u0)
     exc = Vector{Union{Nothing,IEEET1_PHTRUE,PHShuntExciter,PHBrushlessExciter}}(nothing, nm)
-    gov = Vector{Union{Nothing,IEEEG1_PHTRUE,IEEEG3_PHTRUE,PHSteamUnit,PHHydroUnit}}(nothing, nm)
+    gov = Vector{Union{Nothing,IEEEG1_PHTRUE,IEEEG3_PHTRUE,PHSteamUnit,PHHydroUnit,PHHydroPlant}}(nothing, nm)
     Pturb = copy(u0.Tm)                       # turbine power: the shaft power plus the exciter's
     xoff, goff = zeros(Int, nm), zeros(Int, nm)
     Vref, Pref = zeros(nm), zeros(nm)
@@ -680,6 +725,12 @@ function phs_controlled(eq::EquilibriumResult; loads::Symbol = :parallel, circui
                              tables = get(steam, :tables, steam_tables()))
             xg, pref = steam_initialise(ps, Pturb[j] / m.units; rebuild = !fixed)
             gov[j], Pref[j] = ps, pref
+            goff[j] = length(x) + 1
+            append!(x, xg)
+        elseif g !== nothing && hydro !== nothing && g isa IEEEG3_PHTRUE && get(hydro, :model, :unit) === :torpa
+            # the physical hydropower plant (docs/active/PH_HYDRO_PLANT_MODEL.md; review 110)
+            gp, xg, yref = hydroplant_initialise(torpa_plant(name(g); np = get(hydro, :np, 2)), Pturb[j] / m.units)
+            gov[j], Pref[j] = gp, yref
             goff[j] = length(x) + 1
             append!(x, xg)
         elseif g !== nothing && hydro !== nothing && g isa IEEEG3_PHTRUE
@@ -873,6 +924,7 @@ function _bridge_slope!(cs::PHControlled, x0, x1, u::PHInput, h)
     for (i, cv) in enumerate(cs.s.conv)
         _sw_on(cs.conv[i]) || continue
         cs.conv[i].dc.sw.islope = (_conv_current(f1, cv) - _conv_current(f0, cv)) / h
+        cs.conv[i].dc.sw.dl === nothing || (cs.conv[i].dc.sw.dl.fresh = true)   # a new Newton iterate: run the fast side
     end
     return nothing
 end
