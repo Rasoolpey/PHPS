@@ -21,7 +21,8 @@
         f = PHPS.phs_flows(cs.s, x0, upd)
         for (i, g) in enumerate(cs.conv)
             o = cs.coff[i]
-            @test maximum(abs, dx[o+14:o+17]) < 1e-12                      # the DC link and the battery's branches at rest
+            @test maximum(abs, dx[o+14:o+17]) < 1e-11                      # the DC link and the battery's branches at rest (rows
+            # scaled by omega_b: their rounding reaches 1.8e-12 on Windows since they run from the template)
             @test all(==(0), dx[o:o+7]) && all(==(0), dx[o+10:o+13])       # the controller's states held between calls
             @test complex(dx[o+8], dx[o+9]) ≈ -im * cs.s.omega_b * complex(x0[o+8], x0[o+9]) atol = 1e-12   # held in alpha-beta
             xc = view(x0, o:o+17)
