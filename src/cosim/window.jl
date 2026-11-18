@@ -178,7 +178,9 @@ const _C_FAST_SRC = joinpath(@__DIR__, "c", "fast_rl_window.c")
 """Compile the C fast side into dir (gcc) and return the library path."""
 function build_c_fast(dir::AbstractString = mktempdir())
     lib = joinpath(dir, "libfastrl.so")
-    run(`gcc -O2 -fPIC -shared -o $lib $(_C_FAST_SRC)`)
+    # -ffp-contract=off: no fused multiply-add, so the C rounds every operation as Julia does (gcc fuses a*b + c
+    # when the default target has FMA, e.g. on newer Ubuntu runners, and the bit-for-bit check fails)
+    run(`gcc -O2 -ffp-contract=off -fPIC -shared -o $lib $(_C_FAST_SRC)`)
     return lib
 end
 
