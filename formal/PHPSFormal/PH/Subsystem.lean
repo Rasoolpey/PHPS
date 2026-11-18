@@ -67,9 +67,22 @@ theorem composition {ι : Type*} [Fintype ι] (pc yu dc yint yext : ι → ℝ)
     ∑ c, pc c = ∑ c, yext c - ∑ c, dc c := by
   simp only [hdev, hsplit, Finset.sum_sub_distrib, Finset.sum_add_distrib, hint, zero_add]
 
+
+/-- **Proposition 4 with the steam feedthrough.** The group's rows
+`ẋ_s = (J_ss - R_ss) e_s + (Gp e_r + G_s u) - P_s v_f`, with the feedthrough output
+`y_f = P_sᵀ e_s + S_f v_f`, are the form (1) with the inputs `(e_r, u, v_f)` stacked into one
+input `w`, the input matrix `G = [Gp, G_s, 0]` and the feedthrough `P = [0, 0, P_s]`,
+`S = diag(0, 0, S_f)`: their balance is `power_balance`, and with
+`[[R_ss, P], [Pᵀ, S]] ⪰ 0` the group is passive at its ports (`power_le_supply`). -/
+theorem group_balance_feedthrough {q : Type*} [Fintype q] (Jss Rss : Matrix s s ℝ)
+    (G P : Matrix s q ℝ) (S : Matrix q q ℝ) (hJ : Jssᵀ = -Jss) (es : s → ℝ) (w : q → ℝ) :
+    es ⬝ᵥ rate Jss Rss G P es w = output G P S es w ⬝ᵥ w - loss Rss P S es w :=
+  power_balance Jss Rss G P S hJ es w
+
 end PHPSFormal.PH
 
 #print axioms PHPSFormal.PH.skew_blocks
 #print axioms PHPSFormal.PH.group_balance
 #print axioms PHPSFormal.PH.ports_conserve
 #print axioms PHPSFormal.PH.composition
+#print axioms PHPSFormal.PH.group_balance_feedthrough

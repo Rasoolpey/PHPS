@@ -1,8 +1,11 @@
 # The PHPS paper's mathematical claims, and their formal proofs in Lean (plan, 2026-11-18)
 
-**Status 2026-11-18:** P1-P9 and P3b formalised (record [P1-P9.md](P1-P9.md); reviews 123 idea, 124 code, Codex);
-P10-P14 (the device realizations of Proposition 1 and Proposition 2) open: their matrices are in
-`src/phsim/structure.jl` and `steam_structure.jl` and are to be written out in the paper's appendix first.
+**Status 2026-11-18 (end of day):** all of P1-P14 formalised, no `sorry`, standard axioms only (records
+[P1-P9.md](P1-P9.md), [P10-P12.md](P10-P12.md), [P13-P14.md](P13-P14.md); reviews 123-127). The steam unit rests on
+stated properties of steam. Not machine-checked: that IAPWS-95 satisfies them, the row-by-row identity of the code with
+these equations (numerical structure check), a discrete exergy balance, the trajectory equivalence of the reductions.
+The results are in the paper's Appendix A and B (`docs/papers/resubmission/paper/appendix_proofs.tex`) and in the PHPS
+repository's `formal/` (namespace `PHPSFormal`).
 
 Source: `docs/papers/resubmission/paper/main.tex` (draft of 2026-11-18). Motivation: review 07
 (`docs/papers/resubmission/07_rejection_check_merge.md`): both reviewers say the draft repeats the old paper's fault,
