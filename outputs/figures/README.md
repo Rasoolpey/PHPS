@@ -32,6 +32,24 @@ julia --project=. scripts/phase_waveform_plots.jl outputs/ph/full_model/fault_bu
 
 ![phase voltages, three-phase fault](full_model_bus16_3ph_phases.png)
 
+**Unbalanced faults**: the same model built with its zero-sequence network (`phs_full_model(...; dq0)`), which has 592
+states. Each fault is at bus 16 through 0.001 pu from 0.1 s to 0.15 s, and each phase clears at its own current zero. The
+figures show the phase-to-ground voltages at bus 16, at bus 17 and at generator bus 33. Bus 33 is on the delta side of its
+step-up transformer, so it has no zero-sequence path; its phases come from its voltage phasor. Each run takes 25 to 40
+minutes, since an unbalanced fault slows each step a lot.
+
+| Figure | Fault | Command |
+| --- | --- | --- |
+| `full_model_bus16_ag_phases.png` | phase a to ground | `julia --project=. scripts/unbalanced_fault.jl --kind=ag --off=0.15 --tstop=0.3` |
+| `full_model_bus16_bc_phases.png` | phase b to phase c | `... --kind=bc --off=0.15 --tstop=0.3` |
+| `full_model_bus16_bcg_phases.png` | phases b and c to ground | `... --kind=bcg --off=0.15 --tstop=0.3` |
+
+![phase a to ground](full_model_bus16_ag_phases.png)
+
+![phase b to phase c](full_model_bus16_bc_phases.png)
+
+![phases b and c to ground](full_model_bus16_bcg_phases.png)
+
 ## RMS: the phasor model
 
 `cases/IEEE39Bus_PF` has GENROU machines with IEEET1 exciters and IEEEG1/IEEEG3 governors. The fault is three-phase at

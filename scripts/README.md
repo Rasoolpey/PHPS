@@ -8,6 +8,7 @@ Run them from the repository root, for example `julia --project=. scripts/full_m
 | `full_model_fault.jl` | The full physical IEEE 39-bus EMT model (`cases/IEEE39Bus_FullModel`), one fault from its scenario: builds the model, checks the operating point, simulates and stores the run with its energy account in `outputs/ph/full_model/`. `--tstop=`, `--scenario=` |
 | `full_model_plots.jl` | Figures of a stored full-model run (bus voltages, speeds, rotor angles, field voltages, turbine power); plotting only, no simulation |
 | `phase_waveform_plots.jl` | The instantaneous phase voltages a, b, c at chosen buses from a stored EMT run's bus-voltage phasors (`--buses=`, `--from=`, `--to=`); run the fault with `--save_dt=1e-4` for smooth waveforms |
+| `unbalanced_fault.jl` | An unbalanced short circuit on the full model built with its zero-sequence network (`--kind=ag`, `bc`, `bcg`, ...; `--bus=`, `--on=`, `--off=`, `--clearing=`): records the phase-to-ground voltages at chosen buses and draws them; `--replot` draws again from the saved run |
 | `ph_ieee39_fault.jl` | IEEE 39-bus as one port-Hamiltonian model (balanced dq, dynamic pi lines, full-winding machines, no controllers): equilibrium, structure checks, a three-phase fault with the implicit midpoint rule, step refinement and an independent BDF run, energy by component |
 | `ph_audit.jl` | Port-Hamiltonian audit of a case at its equilibrium: storage, dissipation and port balances |
 | `run_base_fault.jl` | RMS: IEEE 39-bus base case, bus-16 fault for 150 ms, with BDF1 and IDA, and plots |

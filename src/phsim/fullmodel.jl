@@ -3,12 +3,13 @@
 # into the folder, and full_model.json with every physical option).
 
 """
-    phs_full_model(dir; scenario = "fault_bus16_3ph.json") -> (; cs, x0, u, eq, sc, case, faults, spec)
+    phs_full_model(dir; scenario = "fault_bus16_3ph.json", dq0 = (;)) -> (; cs, x0, u, eq, sc, case, faults, spec)
 
 The full model of the case folder `dir`: `phs_controlled` with the physical exciters (DC shunt where the IEEET1 has
 `KE < 0`, brushless where `KE > 0`), the physical steam units and the physical hydro unit as `full_model.json`
 declares them, the loads as declared, PowerFactory's machine winding data from `winding_circuits.json`. `x0` is the
-operating point, `faults` the scenario's bus faults as `PHFault`s.
+operating point, `faults` the scenario's bus faults as `PHFault`s. `dq0 = (; zero = :physical, zero_pf_json)` adds the
+zero-axis network, needed for unbalanced faults (`PHFault(...; kind = :ag)` and the others; `ph_system`'s `zero`).
 
 Optional entries of `full_model.json` (absent: as before, lumped lines, no converter options, instant clearing):
 `network.lines` (`"travelling"`), `network.composite` (`mix` and `relays` of the composite loads, with
@@ -16,7 +17,7 @@ Optional entries of `full_model.json` (absent: as before, lumped lines, no conve
 converters' DC side with `bridge` and `device`), `hydro.model = "torpa"` with `np` (the hydropower plant) and
 `clearing = "current_zero"`. Steam paths name IEEEG1 governors; those the case does not have are skipped.
 """
-function phs_full_model(dir::AbstractString; scenario::AbstractString = "fault_bus16_3ph.json")
+function phs_full_model(dir::AbstractString; scenario::AbstractString = "fault_bus16_3ph.json", dq0 = (;))
     spec = JSON3.read(read(joinpath(dir, "full_model.json"), String))
     sc = load_scenario(joinpath(dir, scenario))
     case = load_case(sc.system_path)
@@ -70,7 +71,7 @@ function phs_full_model(dir::AbstractString; scenario::AbstractString = "fault_b
                                   dc_exciter = (; n = Dict(k => Float64(dc.n) for k in shunt), field_ratio = Float64(dc.field_ratio)),
                                   brushless = (; KC = Float64(bl.KC), KD = Float64(bl.KD), sat = (Float64(bl.sat[1]), Float64(bl.sat[2])),
                                                field_share = Float64(bl.field_share)),
-                                  steam, hydro)
+                                  steam, hydro, dq0)
     clr = haskey(spec, :clearing) ? Symbol(spec.clearing) : :instant
     faults = [PHFault(e.bus, e.r, e.t_start, e.t_end; clearing = clr) for e in sc.events if e isa BusFault]
     return (; cs, x0 = collect(x0), u, eq, sc, case, faults, spec)
