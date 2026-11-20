@@ -10,8 +10,9 @@ LocalPreferences.toml
 *.dll
 *.dylib
 
-# Run records (regenerable; each carries its own run.json)
-/outputs/
+# Run records (regenerable; each carries its own run.json), except the example figures in outputs/figures/
+/outputs/*
+!/outputs/figures/
 
 # Editors and OS
 .vscode/

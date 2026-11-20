@@ -5,6 +5,7 @@ const ROOT = normpath(joinpath(@__DIR__, ".."))
 const OUT = joinpath(ROOT, "outputs", "mcp")
 const MODELS = joinpath(OUT, "models")
 const RUNS = joinpath(OUT, "runs")
+const EXPORTS = joinpath(OUT, "exports")
 const BASE_CASE = joinpath(ROOT, "cases", "IEEE39Bus_FullModel")
 
 const ID_RE = r"^[A-Za-z0-9_-]{1,64}$"

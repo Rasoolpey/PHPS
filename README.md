@@ -14,8 +14,13 @@
 
 PHPS models every device by the energy it stores, the energy it loses and the ports through which it exchanges power
 with the rest of the grid. The simulator integrates these models so that the energy balance holds at every time step,
-for every component, to rounding error. The same model code also serves analysis: automatic differentiation,
-interval arithmetic, passivity audits and optimisation.
+for every component, to rounding error.
+
+**The model is open to any study.** The same model that is simulated hands over what an analysis needs, in one call:
+every state named and assigned to its device, the linearisation, the port-Hamiltonian matrices and the stored-energy
+Hessian. An optimisation problem, a modal analysis or a passivity check is then written directly on those matrices,
+in Julia or in another tool, without re-deriving the model. The same holds for any single device or any group of devices: its equations in
+port-Hamiltonian form, with its ports to the rest, are one more call ([features](#features)).
 
 > PHPS was first a Python/C++ simulator (versions 1 and 2). This is its successor, rewritten in Julia.
 
@@ -24,6 +29,7 @@ interval arithmetic, passivity audits and optimisation.
 - [What it provides](#what-it-provides)
 - [Accuracy](#accuracy)
 - [Quick start](#quick-start)
+- [Exporting the model](#exporting-the-model)
 - [Documentation](#documentation)
 - [Working with an AI assistant: the MCP server](#working-with-an-ai-assistant-the-mcp-server)
 - [Design principles](#design-principles)
@@ -66,6 +72,8 @@ interval arithmetic, passivity audits and optimisation.
   (GENROU, GENSAL, IEEET1, IEEEG1, IEEEG3) and converters.
 - **Analysis tools on the same models:** port-Hamiltonian structure and passivity audits, interval enclosures and
   Taylor models, JuMP programs for Lyapunov and storage problems.
+- **The model exported for analysis in one call:** named states, the linearisation and the port-Hamiltonian
+  matrices, as one file or as CSV for other tools.
 - **An MCP server**, so an AI assistant can build models, run faults and read waveforms, the energy account and plots
   through fixed, checked tools.
 
@@ -94,8 +102,11 @@ stored run:
 
 ```
 julia --project=. scripts/full_model_fault.jl --tstop=1
-julia --project=. scripts/full_model_plots.jl
+julia --project=. scripts/full_model_plots.jl outputs/ph/full_model/fault_bus16_3ph_t1.0
 ```
+
+Example figures from these scripts are in [outputs/figures/](outputs/figures/README.md), with the commands that
+produced each one. They cover RMS and EMT runs and the instantaneous phase voltages.
 
 **From Julia:**
 
@@ -119,6 +130,84 @@ eq  = solve_equilibrium(load_case(sc.system_path), sc)
 res = simulate_ida(eq.sys, vcat(eq.x, eq.V); dt = sc.solver.dt, duration = sc.solver.duration)
 ```
 
+## Exporting the model
+
+The equations of the whole model, of one device, or of a group of devices come out in port-Hamiltonian form, as files
+other tools can read. Three steps.
+
+**1. Build the analysis model** (once per case; about 30 s for the 519-state IEEE 39-bus full model, after the model
+itself is built):
+
+```julia
+using PHPS
+am = phs_analysis_model("cases/IEEE39Bus_FullModel")
+am.checks        # the export's own consistency checks: all should be at rounding level
+```
+
+`am` holds every state with its name, its device and its kind, the linearisation `A`, the port-Hamiltonian matrices
+`J`, `R`, `G`, the efforts and the stored-energy Hessian `Q`.
+
+**2. Choose what to export.** The whole model is `am` itself. A device or a group is cut out with `phs_subsystem`:
+
+```julia
+unique(am.component)                                             # the device names to choose from
+sub = phs_subsystem(am, "GENROU_4")                              # one device
+sub = phs_subsystem(am, ["GENROU_4", "IEEET1_4", "IEEEG1_4"])    # a machine, its exciter and its steam unit
+sub = phs_subsystem(am, :machine)                                # every state of one kind
+sub = phs_subsystem(am, (name, device, kind) -> startswith(name, "phi_Line"))   # any rule of your own
+
+sub.ports              # the neighbouring quantities that act on the group (its interconnection ports)
+sub.shared_loss_with   # devices to add if the ports are to conserve power (empty when they already do)
+print(phs_equations(sub))   # the equations, with the states' names
+```
+
+**3. Write the files:**
+
+```julia
+phs_export("outputs/analysis/unit4", sub)        # a folder of CSV files and equations.md
+phs_export("outputs/analysis/unit4.jld2", sub)   # or one JLD2 file (read in Julia with JLD2)
+phs_export("outputs/analysis/ieee39", am)        # the whole model, either way
+```
+
+| File in the folder | Content |
+|---|---|
+| `states.csv` | one line per state: index, name, device, kind, whether its row is in the port-Hamiltonian form, value, typical size, rate, effort |
+| `J.csv`, `R.csv`, `Q.csv` | the lossless exchange, the losses, the stored-energy Hessian (no header; row and column order of `states.csv`) |
+| `Gp.csv`, `ports.csv` | a group's interconnection ports: the matrix, and each port's name, value and the power it delivers to the group |
+| `G.csv`, `inputs.csv` | the external inputs: the matrix, and each input's name and value |
+| `A.csv`, `A_outside.csv`, `outside_states.csv` | the linearisation of the group, and its dependence on states outside it |
+| `equations.md` | a group's equations written out: efforts, then one entry per state with exchange, losses, ports and inputs kept apart |
+| `checks.csv`, `outside.csv`, `feedthrough.csv` | the consistency checks; the states outside the form; the steam units' feedthrough term where present |
+
+On the rows in the form: rates = `(J - R) effort + Gp (efforts of the neighbours) + G input`. The numbers are those at
+the exported state (the operating point, unless another state is given); entries that change with the state are
+marked `*` in `equations.md`, and `sub.structure(x)`, `sub.rate(x)` and `sub.energy(x)` give them at any other state
+of the group.
+
+**Reading the files elsewhere:**
+
+```python
+import numpy as np, pandas as pd                      # Python
+d = "outputs/analysis/unit4"
+states = pd.read_csv(d + "/states.csv")
+J = np.loadtxt(d + "/J.csv", delimiter=","); R = np.loadtxt(d + "/R.csv", delimiter=",")
+Gp = np.loadtxt(d + "/Gp.csv", delimiter=",", ndmin=2)
+```
+
+```matlab
+states = readtable('outputs/analysis/unit4/states.csv');   % MATLAB
+J = readmatrix('outputs/analysis/unit4/J.csv');  R = readmatrix('outputs/analysis/unit4/R.csv');
+```
+
+```julia
+using JLD2; m = load("outputs/analysis/unit4.jld2")        # Julia, without PHPS: m["J"], m["names"], m["equations"], ...
+```
+
+From the command line: `julia --project=. scripts/analysis/export_full_model.jl` (the whole model, and its modes) and
+`julia --project=. scripts/analysis/export_component.jl GENROU_4 IEEET1_4 IEEEG1_4` (any devices). An optimisation
+problem written on an exported file is in `scripts/analysis/jump_example.jl`. Through an AI assistant, the MCP
+server's `export_model` tool does the same for a built model ([tools](#the-tools)). Details: [analysis tools](docs/analysis.md).
+
 ## Documentation
 
 [docs/](docs/README.md) holds the user guide and the API reference:
@@ -128,7 +217,8 @@ res = simulate_ida(eq.sys, vcat(eq.x, eq.V); dt = sc.solver.dt, duration = sc.so
   stored runs.
 - [RMS simulation](docs/rms_simulation.md): cases, scenarios, power flow, initialisation, solvers, results.
 - [Case files](docs/case_format.md): the system, scenario and full-model JSON formats.
-- [Analysis tools](docs/analysis.md): port-Hamiltonian audits, interval tools, Lyapunov and storage programs.
+- [Analysis tools](docs/analysis.md): exporting the model or any group of devices in port-Hamiltonian form,
+  port-Hamiltonian audits, interval tools, Lyapunov and storage programs.
 - [Scripts](scripts/README.md) and the [MCP server](mcp/README.md).
 - [API reference](docs/api/README.md): every exported function and type with its docstring, generated from the code.
 
@@ -161,12 +251,14 @@ By hand: `julia --project=mcp --startup-file=no mcp/server.jl` (the server speak
 | `run_simulation` | Simulates a built model with faults; ends with a short summary of the run | `model_id`, `tstop`, `faults` (each: `bus`, `kind`, `R`, `Rg`, `t_on`, `t_off`, `clearing`); `save_dt`, `h`, `hscale`, `tol`; `max_wall_minutes`, `allow_long`, `dry_run` |
 | `job_status` | State and progress of a build or run; waits up to 60 s for it to finish | `job_id`, `wait_seconds` |
 | `cancel_job` | Stops a job; `force` restarts the simulation worker | `job_id`, `force` |
-| `list_runs` | Built models and stored runs | none |
+| `list_runs` | Built models, stored runs and exports | none |
 | `list_signals` | The signals stored in a run | `run_id`, `include_raw_states` |
 | `get_signals` | Signal values: initial, lowest, highest and final with their times, and a table that keeps the peaks and the fault instants | `run_id`, `signals`, `t_from`, `t_to`, `max_points`, `reference_machine` |
 | `energy_audit` | Energy balance of a run, per component and for the system | `run_id` |
 | `plot` | Plots signals of one or more runs, one panel per unit, and returns the image | `run_ids`, `signals`, `t_from`, `t_to`, `reference_machine`, `title` |
 | `delete_run` | Deletes a stored run and its plots | `run_id` |
+| `export_model` | Exports a built model, one device or a group of devices in port-Hamiltonian form at its operating point: the matrices, the ports to the rest of the system with their powers, the inputs, and the equations written out with the states' names (CSV files, `equations.md`, a JLD2 file) | `model_id`, `devices` (names, e.g. `["GENROU_4", "IEEET1_4"]`) or `kind`; without either, the whole model |
+| `get_export` | Reads a stored export in bounded pieces: its summary, equations, states, ports or inputs | `export_id`, `part`, `from_line`, `max_lines` |
 
 **Fault kinds:** `abc` (three-phase), `abcg` (three-phase to ground), `ag`, `bg`, `cg` (phase to ground), `ab`, `bc`,
 `ca` (phase to phase), `abg`, `bcg`, `cag` (two phases to ground). Faults to ground need a model built with
@@ -263,6 +355,62 @@ flowchart TD
     Q --> M
 ```
 
+### Features
+
+**The main feature: the port-Hamiltonian equations of the whole model, of any device, or of any group of devices come
+out of the simulated model in one call.** A study on a
+detailed power-system model usually starts by re-deriving the model in the form the study needs: a state matrix for
+modal analysis, energy and dissipation matrices for a storage or Lyapunov problem, named blocks for an optimisation
+programme. Here that form is an output of the model, with consistency checks, and the states keep their names and
+their devices.
+
+From a case folder to an optimisation problem:
+
+```julia
+using PHPS
+am = phs_analysis_model("cases/IEEE39Bus_FullModel")   # 519 named states: A, J, R, G, Q and checks, about 30 s
+phs_export("outputs/analysis/ieee39_full_model.jld2", am)
+
+# afterwards, in any environment with JuMP; the simulator is not needed
+using JLD2, JuMP, Hypatia, LinearAlgebra
+m = load("outputs/analysis/ieee39_full_model.jld2")
+w = [i for i in eachindex(m["names"]) if m["component"][i] == "GENROU_4" && !endswith(m["names"][i], ".delta")]
+A = m["A"][w, w]; Q = Symmetric(m["Q"][w, w]); n = length(w)   # one machine's windings and rotor, picked by name
+model = Model(Hypatia.Optimizer)
+@variable(model, P[1:n, 1:n], Symmetric); @variable(model, kappa)
+@constraint(model, Symmetric(P - Q) in PSDCone()); @constraint(model, Symmetric(kappa .* Q - P) in PSDCone())
+@constraint(model, Symmetric(-(A' * P + P * A) - 0.1 .* P) in PSDCone())
+@objective(model, Min, kappa); optimize!(model)
+```
+
+The complete script is `scripts/analysis/jump_example.jl`. How to export, step by step: [Exporting the model](#exporting-the-model).
+
+| Study | What the model hands over | What it takes |
+|---|---|---|
+| Optimisation on the model (semidefinite and other programmes on its matrices) | `A`, `J`, `R`, `G`, `Q` with named states, so any block is picked by device or state name | `phs_analysis_model`, `phs_export`, then JuMP on the file (`scripts/analysis/jump_example.jl`) |
+| The equations of any device or group of devices in port-Hamiltonian form | the group cut out of the assembled model as a system of its own: its `J`, `R`, stored-energy Hessian, its ports to the rest with their powers, its inputs, and the equations written out with the states' names; the export says when a neighbouring device must be added for the ports to conserve power | `phs_subsystem(am, ["GENROU_4", "IEEET1_4", "IEEEG1_4"])`, `phs_equations(sub)`, `phs_export(folder, sub)`; `scripts/analysis/export_component.jl` |
+| Modal analysis | the state matrix of the full EMT model with the device of every state, so each mode lists the devices that take part | `eigen(am.A)`; `scripts/analysis/export_full_model.jl` prints the table |
+| Linearisation and sensitivities at any state | the model's rates as a function that accepts automatic differentiation | `ForwardDiff.jacobian(am.rate, x)` |
+| Energy and loss studies | for every device and every step: stored energy, power through its ports, losses | stored with every run; `phs_ledger(model, x, u)` at any state |
+| Structure and passivity checks | `J`, `R`, `G` and the efforts at any state, built separately from the simulated equations and compared with them | `phs_structure(model, x, u)`; `am.checks` |
+| Guaranteed bounds over a region | the component code evaluated on intervals (RMS model) | the interval tools in `src/roa/` |
+| Studies in other tools | the same matrices and state table as plain CSV files | `phs_export(folder, am)` |
+
+What makes these one call each:
+
+| Feature | What you get | What it takes |
+|---|---|---|
+| EMT simulation of a full power system | stator and rotor fluxes, line currents and node voltages as states, in dq0; balanced and unbalanced faults, cleared at once or at each phase's current zero | `phs_simulate(model, x0, u; tstop, faults)` |
+| An energy account with every run | for every device and every step: change of stored energy, power through its ports, losses, and what is left over (about 1e-13 of the energy exchanged in an IEEE 39-bus fault run) | nothing extra: it is stored with the run |
+| Physical plant models that connect by power ports | machines with all rotor windings, DC and brushless exciters, steam units with real steam properties, a hydro unit with an elastic penstock, converters with their DC side, travelling-wave lines, saturating transformers, motor loads | a case folder of JSON files; `phs_full_model(folder)` |
+| One model code for simulation and analysis | the same component code runs with floating-point numbers, automatic differentiation and intervals, so a linearisation or an enclosure is of the simulated model, not of a second copy | built in (design principle 1) |
+| Traceable runs | each run records the case, scenario, source commit, environment, solver settings and wall time | built in: `run.json` beside the results |
+| An RMS stack on the same cases | power flow, initialisation, phasor simulation with IEEE controllers and converters | `solve_equilibrium`, `simulate_ida` |
+| Use through an AI assistant | build models, run faults, read waveforms and the energy account, and export the model or any devices in port-Hamiltonian form, through fixed, checked tools | the MCP server in `mcp/` |
+| Machine-checked mathematics | the power balance, the Dirac structure of the network, the energy-exact time step, the export's subsystem ports and every device's port-Hamiltonian form proved in Lean 4 with mathlib, no unproved steps; the properties of steam are stated hypotheses | `formal/` (`lake build`); [formal/README.md](formal/README.md) |
+
+Details: [EMT simulation](docs/emt_simulation.md), [analysis tools](docs/analysis.md).
+
 | Module | What it does |
 |---|---|
 | `io` | JSON schema validation; loaders for cases, scenarios and contracts; a safe parameter-expression reader (`"2.0 * M_PI * 60.0"`, never `eval`) |
@@ -332,7 +480,7 @@ The format is the one of the Python PHPS, so its cases load unchanged. See [docs
 - RMS runs: `simulation_results.csv`, a JLD2 copy of the results, and `run.json`;
 - EMT runs (`phs_write_run`): one JLD2 file with the whole state trajectory, bus voltages, the energy account per
   component, the declared records and the git commit;
-- everything goes under `outputs/` (not in git).
+- everything goes under `outputs/` (not in git), except the example figures in `outputs/figures/`.
 
 ## Repository layout
 
@@ -358,6 +506,7 @@ PHPS/
 ├── contracts/              per-model port contracts
 ├── mcp/                    MCP server for AI assistants
 ├── scripts/                command-line entry points; build_api_docs.jl writes docs/api/
+│   └── analysis/           export of the model for analysis tools, and two analyses on the exported file
 ├── docs/                   user guide, API reference, figures
 ├── test/                   unit tests
 └── .github/workflows/      CI

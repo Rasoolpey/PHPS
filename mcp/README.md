@@ -18,7 +18,7 @@ First setup (once): `julia --project=mcp -e 'using Pkg; Pkg.instantiate()'`.
 ## Tools
 
 `list_cases`, `build_model`, `operating_point`, `describe`, `run_simulation`, `job_status`, `cancel_job`, `list_runs`,
-`list_signals`, `get_signals`, `energy_audit`, `plot`, `delete_run`. Each tool's arguments are described in the tool
+`list_signals`, `get_signals`, `energy_audit`, `plot`, `delete_run`, `export_model`, `get_export`. Each tool's arguments are described in the tool
 list the client receives.
 
 ## How it works
@@ -32,5 +32,9 @@ list the client receives.
 - Everything is stored under `outputs/mcp/`: `models/<id>/` (the derived case, the build options, the operating
   point) and `runs/<id>/` (`run.jld2` with the states, bus voltages, energy account and recorded generator signals;
   `run.json`; plots). Signals, the energy account and plots are read from these files, never simulated again.
+
+- `export_model` writes a built model, one device or a group of devices in port-Hamiltonian form at its operating
+  point to `outputs/mcp/exports/<id>/`: the matrices, the ports with their powers, the inputs and `equations.md` with
+  the equations written out. `get_export` reads its summary, equations, states, ports or inputs in bounded pieces.
 
 End-to-end test: `mcp/test/e2e.jl`.

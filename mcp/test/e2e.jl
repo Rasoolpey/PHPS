@@ -35,7 +35,7 @@ println("initialize: ", r["result"]["serverInfo"])
 call("notifications/initialized"; notify = true)
 tl = call("tools/list")["result"]["tools"]
 println("tools: ", join([t["name"] for t in tl], ", "))
-@assert length(tl) == 13
+@assert length(tl) == 15
 
 tool("list_cases")
 tool("build_model", Dict{String,Any}("preset" => "ieee", "dry_run" => true))
@@ -68,6 +68,19 @@ tool("get_signals", Dict{String,Any}("run_id" => rid, "signals" => ["GENROU_3.sp
 _, txt = tool("energy_audit", Dict{String,Any}("run_id" => rid))
 res, _ = tool("plot", Dict{String,Any}("run_ids" => [rid], "signals" => ["bus16.voltage", "GENROU_3.speed"]))
 @assert any(c -> c["type"] == "image", res["content"])
+# export one machine with its exciter in port-Hamiltonian form, then read it back
+_, txt = tool("export_model", Dict{String,Any}("model_id" => mid, "devices" => ["GENROU_3", "IEEET1_3"], "wait_seconds" => 60))
+job = match(r"Job (j-[A-Za-z0-9-]+)", txt)[1]
+while !occursin(": done", txt)
+    occursin("failed", txt) && error("export failed")
+    _, txt = tool("job_status", Dict{String,Any}("job_id" => job, "wait_seconds" => 60))
+end
+xid = match(r"Export (x-[A-Za-z0-9-]+) of model", txt)[1]
+@assert occursin("interconnection ports", txt)
+_, txt = tool("get_export", Dict{String,Any}("export_id" => xid, "part" => "equations", "max_lines" => 30))
+@assert occursin("d/dt GENROU_3.lam_d", txt)
+tool("get_export", Dict{String,Any}("export_id" => xid, "part" => "ports"))
+res, _ = tool("export_model", Dict{String,Any}("model_id" => mid, "devices" => ["NO_SUCH_DEVICE"], "wait_seconds" => 60))
 tool("list_runs")
 close(proc)
 println("\nE2E PASSED")

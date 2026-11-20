@@ -140,6 +140,7 @@ include("cosim/window.jl")              # window-held port coupling on a small P
 include("phsim/clearing.jl")
 include("phsim/pccmanifold.jl")
 include("phsim/fullmodel.jl")
+include("phsim/export.jl")
 include("roa/ivsteam.jl")              # interval methods of the steam lookups (practical-return proof, P0)
 include("roa/ivfield.jl")              # interval methods of the field (practical-return proof, P0)
 include("roa/ivlimit.jl")              # interval methods of the limiter primitives (window certificate, 13.31)
@@ -257,7 +258,7 @@ export PCCSplit, PCCReduced, pcc_split, pcc_Q, pcc_rot, pcc_split3, pcc_qappend,
 export PHSystem, PHMachine, PHCut, PHInput, PHFault, phs_resolve_clearing, PHRun, ph_system, phs_nstates, phs_state_names,
        phs_flows, phs_rhs!, phs_rhs, phs_energy, phs_gradient, phs_matrices, phs_structure, phs_structure_energy, phs_ledger, phs_network_mask,
        phs_terminal_voltage, phs_cut_voltage, phs_machine_signals, phs_phases, phs_equilibrium,
-       phs_scales, phs_step_rule, phs_frame, phs_rotate_network, phs_simulate, phs_simulate_bdf, PHControlled, phs_controlled, phs_fixed_units, phs_full_model,
+       phs_scales, phs_step_rule, phs_frame, phs_rotate_network, phs_simulate, phs_simulate_bdf, PHControlled, phs_controlled, phs_fixed_units, phs_full_model, phs_analysis_model, phs_export, phs_subsystem, phs_equations,
        phs_control_inputs, phs_control_signals, phs_modes, PHShuntExciter, PHBrushlessExciter,
        phs_write_run, phs_read_run,
        SteamTables, steam_tables, steam_sat, steam_state, steam_h_isentropic,

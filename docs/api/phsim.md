@@ -31,6 +31,10 @@ Generated from the docstrings by `scripts/build_api_docs.jl`; do not edit by han
 | [`gfl_initial`](#gfl_initial) | `converter.jl` |
 | [`PHShuntExciter`](#phshuntexciter) | `exciter.jl` |
 | [`PHBrushlessExciter`](#phbrushlessexciter) | `exciter.jl` |
+| [`phs_analysis_model`](#phs_analysis_model) | `export.jl` |
+| [`phs_export`](#phs_export) | `export.jl` |
+| [`phs_subsystem`](#phs_subsystem) | `export.jl` |
+| [`phs_equations`](#phs_equations) | `export.jl` |
 | [`phs_full_model`](#phs_full_model) | `fullmodel.jl` |
 | [`PHHydroUnit`](#phhydrounit) | `hydro.jl` |
 | [`hydro_Tw_match`](#hydro_tw_match) | `hydro.jl` |
@@ -64,6 +68,8 @@ Generated from the docstrings by `scripts/build_api_docs.jl`; do not edit by han
 | [`steam_sat`](#steam_sat) | `steamprops.jl` |
 | [`steam_state`](#steam_state) | `steamprops.jl` |
 | [`steam_h_isentropic`](#steam_h_isentropic) | `steamprops.jl` |
+| [`phs_structure_energy`](#phs_structure_energy) | `structure.jl` |
+| [`phs_structure`](#phs_structure) | `structure.jl` |
 | [`PHMachine`](#phmachine) | `system.jl` |
 | [`PHCut`](#phcut) | `system.jl` |
 | [`PHConverter`](#phconverter) | `system.jl` |
@@ -161,7 +167,7 @@ kernel takes them.
 
 ### phs_control_signals
 
-*[src/phsim/control.jl:493](../../src/phsim/control.jl#L493)*
+*[src/phsim/control.jl:517](../../src/phsim/control.jl#L517)*
 
     phs_control_signals(cs, x) -> (; Efd, Pm, vf, Pexc)
 
@@ -174,7 +180,7 @@ without an exciter.
 
 ### phs_fixed_units
 
-*[src/phsim/control.jl:522](../../src/phsim/control.jl#L522)*
+*[src/phsim/control.jl:546](../../src/phsim/control.jl#L546)*
 
     phs_fixed_units(cs::PHControlled) -> (; steam, hydro_Tw)
 
@@ -186,7 +192,7 @@ none; an error if there is more than one).
 
 ### phs_controlled
 
-*[src/phsim/control.jl:537](../../src/phsim/control.jl#L537)*
+*[src/phsim/control.jl:561](../../src/phsim/control.jl#L561)*
 
     phs_controlled(eq::EquilibriumResult; loads = :parallel, circuits = nothing,
                    dc_exciter = nothing, brushless = nothing) -> (cs, x, u, report)
@@ -324,7 +330,7 @@ the bridge power `P_x = v_dc Re(m conj(ic)) = Re(u_x conj(ic))`, the stored ener
 
 ### PHDroop
 
-*[src/phsim/converter.jl:387](../../src/phsim/converter.jl#L387)*
+*[src/phsim/converter.jl:392](../../src/phsim/converter.jl#L392)*
 
     PHDroop
 
@@ -335,7 +341,7 @@ vm_q, im_d, im_q` (the filter states in the controller's frame), sampled (`Ts > 
 
 ### droop_output
 
-*[src/phsim/converter.jl:476](../../src/phsim/converter.jl#L476)*
+*[src/phsim/converter.jl:481](../../src/phsim/converter.jl#L481)*
 
     droop_output(g, xc) -> (; uc, vmeas, imeas, boost, stage1, stage2)
 
@@ -345,7 +351,7 @@ The droop controller's output (the DLL's `Model_Outputs`) from its states alone.
 
 ### PHVoc
 
-*[src/phsim/converter.jl:565](../../src/phsim/converter.jl#L565)*
+*[src/phsim/converter.jl:570](../../src/phsim/converter.jl#L570)*
 
     PHVoc
 
@@ -361,7 +367,7 @@ the call that made the held output (as for the sampled VSM, record section 10).
 
 ### voc_rates
 
-*[src/phsim/converter.jl:632](../../src/phsim/converter.jl#L632)*
+*[src/phsim/converter.jl:637](../../src/phsim/converter.jl#L637)*
 
     voc_rates(g, xc, vk, ic) -> (; dv, iref, ifilt, Z)
 
@@ -373,7 +379,7 @@ terminal voltage `vk` and injected current `ic`; the current reference, the curr
 
 ### voc_sample!
 
-*[src/phsim/converter.jl:653](../../src/phsim/converter.jl#L653)*
+*[src/phsim/converter.jl:658](../../src/phsim/converter.jl#L658)*
 
     voc_sample!(xc, g, vk, ic, omega_b)
 
@@ -385,7 +391,7 @@ the oscillator's Euler step with the DLL's rotation, and the filter's update.
 
 ### PHGfl
 
-*[src/phsim/converter.jl:703](../../src/phsim/converter.jl#L703)*
+*[src/phsim/converter.jl:708](../../src/phsim/converter.jl#L708)*
 
     PHGfl
 
@@ -399,7 +405,7 @@ the state between calls it reads the voltage after the call's frame reset, 9e-4 
 
 ### gfl_call
 
-*[src/phsim/converter.jl:787](../../src/phsim/converter.jl#L787)*
+*[src/phsim/converter.jl:792](../../src/phsim/converter.jl#L792)*
 
     gfl_call(g, xc, vk) -> (; d, vd, vq, omega, sat, gate, idc, iqc)
 
@@ -410,7 +416,7 @@ states (`d[1]` is the PLL's `omega` in rad/s; the angle's step in the simulator'
 
 ### gfl_sample!
 
-*[src/phsim/converter.jl:821](../../src/phsim/converter.jl#L821)*
+*[src/phsim/converter.jl:826](../../src/phsim/converter.jl#L826)*
 
     gfl_sample!(xc, g, vk, omega_b)
 
@@ -422,7 +428,7 @@ clamped to `+-phi_max`, the angle in the simulator's frame). The static generato
 
 ### gfl_emf
 
-*[src/phsim/converter.jl:841](../../src/phsim/converter.jl#L841)*
+*[src/phsim/converter.jl:846](../../src/phsim/converter.jl#L846)*
 
     gfl_emf(g, xc, ic) -> u_c
 
@@ -432,7 +438,7 @@ The static generator's EMF (TechRef 7.1, eqs. 81-85) at the states `xc` and the 
 
 ### gfl_rates!
 
-*[src/phsim/converter.jl:853](../../src/phsim/converter.jl#L853)*
+*[src/phsim/converter.jl:858](../../src/phsim/converter.jl#L858)*
 
     gfl_rates!(dx, g, xc, ic, omega_b)
 
@@ -443,7 +449,7 @@ generator's PI integrators on the error in the held frame.
 
 ### gfl_initial
 
-*[src/phsim/converter.jl:882](../../src/phsim/converter.jl#L882)*
+*[src/phsim/converter.jl:887](../../src/phsim/converter.jl#L887)*
 
     gfl_initial(g, vk, ic, E0) -> x
 
@@ -480,7 +486,7 @@ not change, and the field current, energy and loss are those of all the exciters
 
 ### PHBrushlessExciter
 
-*[src/phsim/exciter.jl:212](../../src/phsim/exciter.jl#L212)*
+*[src/phsim/exciter.jl:217](../../src/phsim/exciter.jl#L217)*
 
     PHBrushlessExciter
 
@@ -500,6 +506,95 @@ loss over the power delivered to the machine's field, both at one per unit, at r
 unsaturated and without load: `g = field_share Rfd / (Lad KE)^2`. Refused: an input filter,
 `KE` not positive, a gain or time constant that is not positive, data that are not finite or
 have the wrong sign, and a field characteristic that is not increasing.
+
+---
+
+### phs_analysis_model
+
+*[src/phsim/export.jl:8](../../src/phsim/export.jl#L8)*
+
+    phs_analysis_model(m, x0, u; hessian = true, steam = :exergy) -> NamedTuple
+    phs_analysis_model(dir; scenario = "fault_bus16_3ph.json", kwargs...)
+
+The model `m` (a `PHSystem` or a `PHControlled`; or the full model of the case folder `dir`) at the state `x0`, for
+analysis outside the simulator. Fields:
+
+| Field | What it is |
+|---|---|
+| `names`, `component`, `kind` | per state: its name, the device it belongs to, and `:machine`, `:excitation`, `:prime_mover`, `:converter` or `:network` (the network side: nodes, branches, transformers, loads, motors) |
+| `in_form` | per state: whether its row is in the port-Hamiltonian form (signal rows of controllers and the devices in `outside` are not) |
+| `x0`, `scale`, `rate0` | the state, a typical size of each state, and the rates at `x0` (zero at an operating point) |
+| `A` | the linearisation: derivative of the rates with respect to the states at `x0` (automatic differentiation) |
+| `J`, `R`, `G`, `input`, `effort` | the structure at `x0`: on the rows in the form, rates = `(J - R) effort + G input` (less `Pf * vf` where a steam unit has feedthrough) |
+| `Q` | derivative of the efforts with respect to the states: the Hessian of the stored energy of the rows in the form (central differences; `nothing` if `hessian = false`) |
+| `ports`, `outside` | the name of each input, and what is outside the form |
+| `checks` | consistency of this export (see below) |
+| `rate`, `energy`, `structure` | functions of a state, for analyses away from `x0` |
+
+`checks`: `operating_point` (largest rate over its state's scale), `structure` (largest difference between the rates
+and the structure's right-hand side on the rows in the form, over the scale), `J_skew` (largest entry of `J + J'`),
+`R_asymmetry` and `R_min` (asymmetry and smallest eigenvalue of `R` on those rows, over its norm; in the model's
+coordinates), `Q_asymmetry` (scaled by the states' sizes, relative). With no row in the form the structure checks are zero.
+
+---
+
+### phs_export
+
+*[src/phsim/export.jl:100](../../src/phsim/export.jl#L100)*
+
+    phs_export(path, am) -> path
+
+Write the analysis model `am` (`phs_analysis_model`). A path ending in `.jld2` gives one JLD2 file (arrays and
+strings; readable without this package). Any other path is taken as a folder and filled with plain CSV files for other
+tools: `states.csv` (a header line, then index from 1, name, component, kind, in_form, x0, scale, rate0, effort), one
+file per matrix without a header (`A.csv`, `J.csv`, `R.csv`, `G.csv`, and `Q.csv`, `Pf.csv` if present), `inputs.csv`
+(port, value), `feedthrough.csv` (the values `vf` that `Pf` multiplies, if present), `outside.csv` and `checks.csv`.
+Files of an earlier export into the same folder that this one does not write are removed.
+
+---
+
+### phs_subsystem
+
+*[src/phsim/export.jl:193](../../src/phsim/export.jl#L193)*
+
+    phs_subsystem(am, select) -> NamedTuple
+
+The part of the analysis model `am` (`phs_analysis_model`) made of the chosen states, as a system of its own:
+
+    rates = (J - R) effort + Gp * (efforts of the neighbouring states) + G * input      (rows in the form)
+
+`select` is a device name or a vector of device or state names (`"GENROU_4"`, `["GENROU_4", "IEEET1_4"]`), a kind
+(`:machine`), a vector of state indices, or a function `(name, component, kind) -> Bool`.
+
+Fields, beside those of `am` restricted to the chosen states (`names`, `component`, `kind`, `in_form`, `x0`, `scale`,
+`rate0`, `effort`, `J`, `R`, `Q`, `A`):
+
+| Field | What it is |
+|---|---|
+| `index` | the chosen states' indices in `am` |
+| `Gp`, `ports`, `port_effort`, `port_power` | the interconnection ports: one per neighbouring state whose effort acts on the group, its name, its effort at `x0`, and the power it delivers to the group there |
+| `G`, `sources`, `input` | the external inputs that act on the group |
+| `feedthrough` | the term subtracted on the group's rows where a steam unit has feedthrough (zero otherwise) |
+| `A_outside`, `outside_states` | for the linearisation: how the group's rates depend on states outside it |
+| `varies` | for each entry of `[J - R, Gp]`: whether it changes with the group's state (sampled; the numbers are those at `x0`) |
+| `shared_loss_with` | the neighbouring devices that share a loss term with the group (a steam unit with its machine's rotor, for example): include them for a group whose ports all conserve power |
+| `checks` | `structure` (the rates against the right-hand side above, rows in the form, over the scale), `J_skew`, `R_min`, `shared_loss_entries` (the number of loss entries shared with neighbours: zero when every port conserves power), `varies_samples` (how many of the two sampled states `varies` rests on), `energy_separable` (the part of the group's efforts that depends on outside states, scaled and relative: zero when the group has an energy of its own) |
+| `rate`, `energy`, `structure` | functions of the group's state, the rest of the model held at `x0` |
+
+---
+
+### phs_equations
+
+*[src/phsim/export.jl:280](../../src/phsim/export.jl#L280)*
+
+    phs_equations(sub) -> String
+    phs_equations(io, sub; digits = 6)
+
+The equations of a subsystem (`phs_subsystem`) written out with the names of its states, as Markdown: the efforts
+(the stored energy's derivatives, linear where the energy is quadratic), one line per state for the rows in the
+port-Hamiltonian form (the lossless exchange, the losses, the ports and the inputs kept apart), the linearised rows of
+the signal states, and the power through every port. The numbers are those at the state `x0` of the export; an entry
+that changes with the group's state is marked `*`.
 
 ---
 
@@ -551,7 +646,7 @@ report's eq. (7) gives `(1 - G0 Tw s) / (1 + G0 Tw s / 2)` at gate `G0 = Pm / GM
 
 ### hydro_initialise
 
-*[src/phsim/hydro.jl:201](../../src/phsim/hydro.jl#L201)*
+*[src/phsim/hydro.jl:223](../../src/phsim/hydro.jl#L223)*
 
     hydro_initialise(g, Pm) -> (x, Pref)
 
@@ -621,7 +716,7 @@ or a matrix with one column per saved time. `phs_write_run` writes all of it to 
 
 ### phs_simulate
 
-*[src/phsim/midpoint.jl:325](../../src/phsim/midpoint.jl#L325)*
+*[src/phsim/midpoint.jl:336](../../src/phsim/midpoint.jl#L336)*
 
     phs_simulate(s, x0, u; tstop, faults = PHFault[], stops = (), hscale = 1, h = nothing,
                  save_dt = 1e-3, grid = nothing, sample_at = nothing, monitor = nothing,
@@ -657,7 +752,7 @@ scaled by `phs_scales`, is below `tol` (at `1e-12` the discrete balance of some 
 
 ### phs_simulate_bdf
 
-*[src/phsim/midpoint.jl:702](../../src/phsim/midpoint.jl#L702)*
+*[src/phsim/midpoint.jl:718](../../src/phsim/midpoint.jl#L718)*
 
     phs_simulate_bdf(s, x0, u; tstop, faults = PHFault[], saveat, reltol = 1e-10, abstol = 1e-12)
         -> (t, X)
@@ -672,7 +767,7 @@ states must set the frame of each saved time itself (`_set_frame!`). `abstol` mu
 
 ### phs_write_run
 
-*[src/phsim/midpoint.jl:745](../../src/phsim/midpoint.jl#L745)*
+*[src/phsim/midpoint.jl:761](../../src/phsim/midpoint.jl#L761)*
 
     phs_write_run(path, r::PHRun; model = nothing, meta = Dict(), states = true) -> path
 
@@ -692,7 +787,7 @@ records, the voltages and the account remain).
 
 ### phs_read_run
 
-*[src/phsim/midpoint.jl:779](../../src/phsim/midpoint.jl#L779)*
+*[src/phsim/midpoint.jl:795](../../src/phsim/midpoint.jl#L795)*
 
     phs_read_run(path) -> Dict{String,Any}: what `phs_write_run` wrote, by name.
 
@@ -949,6 +1044,31 @@ equilibrium mixture `h_f + T_sat (s - s_f)` inside it. `x` is the quality (1 for
 
 ---
 
+### phs_structure_energy
+
+*[src/phsim/structure.jl:36](../../src/phsim/structure.jl#L36)*
+
+    phs_structure_energy(m, x) -> H_I(x)
+
+The energy of the included components of `phs_structure`: the grid model's `phs_energy`, the DC shunt exciters'
+fields, the hydro units' water columns and the converters' averaged DC sides (the steam units and brushless exciters
+are excluded).
+
+---
+
+### phs_structure
+
+*[src/phsim/structure.jl:69](../../src/phsim/structure.jl#L69)*
+
+    phs_structure(m, x, u) -> (; J, R, G, v, z, idx, ports, excluded)
+
+The port-Hamiltonian structure at `x` (file header), with matrices over all states of `m` (zero outside the
+included rows `idx`). `m` is a `PHSystem` (then `u` is its input) or a `PHControlled` (then `u` carries the fault
+conductances and the frame phasor; the controllers set the rest). `ports[k]` names input `v[k]`; `excluded` names
+what is outside `idx`.
+
+---
+
 ### PHMachine
 
 *[src/phsim/system.jl:79](../../src/phsim/system.jl#L79)*
@@ -967,7 +1087,7 @@ the branch winding, whose flux pair is the state `tidx`.
 
 ### PHCut
 
-*[src/phsim/system.jl:111](../../src/phsim/system.jl#L111)*
+*[src/phsim/system.jl:116](../../src/phsim/system.jl#L116)*
 
     PHCut
 
@@ -984,7 +1104,7 @@ L_T + b^2 L_L]`, `Rm` as in the file header.
 
 ### PHConverter
 
-*[src/phsim/system.jl:138](../../src/phsim/system.jl#L138)*
+*[src/phsim/system.jl:143](../../src/phsim/system.jl#L143)*
 
     PHConverter
 
@@ -999,7 +1119,7 @@ affine in `u_c` with a constant, record section 21, T1 row 4).
 
 ### PHSystem
 
-*[src/phsim/system.jl:164](../../src/phsim/system.jl#L164)*
+*[src/phsim/system.jl:169](../../src/phsim/system.jl#L169)*
 
     PHSystem
 
@@ -1023,7 +1143,7 @@ of the network states: `false` (the default) the synchronous frame, `true` the s
 
 ### PHInput
 
-*[src/phsim/system.jl:221](../../src/phsim/system.jl#L221)*
+*[src/phsim/system.jl:226](../../src/phsim/system.jl#L226)*
 
     PHInput
 
@@ -1038,7 +1158,7 @@ time of each evaluation (`_set_frame!`); 1 otherwise and unused.
 
 ### ph_system
 
-*[src/phsim/system.jl:273](../../src/phsim/system.jl#L273)*
+*[src/phsim/system.jl:278](../../src/phsim/system.jl#L278)*
 
     ph_system(sys::DAESystem; v0 = nothing, loads = :parallel, circuits = nothing,
               stray_capacitance = 0.0) -> PHSystem
@@ -1065,7 +1185,7 @@ gives those transformers a saturating core (`transformer.jl`; record sections 20
 
 ### phs_state_names
 
-*[src/phsim/system.jl:738](../../src/phsim/system.jl#L738)*
+*[src/phsim/system.jl:743](../../src/phsim/system.jl#L743)*
 
     phs_state_names(s) -> Vector{String}
 
@@ -1075,7 +1195,7 @@ gives those transformers a saturating core (`transformer.jl`; record sections 20
 
 ### phs_machine_signals
 
-*[src/phsim/system.jl:880](../../src/phsim/system.jl#L880)*
+*[src/phsim/system.jl:885](../../src/phsim/system.jl#L885)*
 
     phs_machine_signals(s, x) -> Vector of (; speed, delta, torque, ifd, id, iq, psid, psiq)
 
@@ -1087,7 +1207,7 @@ without the merged transformer's leakage and without what a reduced node adds).
 
 ### phs_flows
 
-*[src/phsim/system.jl:927](../../src/phsim/system.jl#L927)*
+*[src/phsim/system.jl:932](../../src/phsim/system.jl#L932)*
 
     phs_flows(s, x, u) -> (; v, inj, mc, ib, ish, iload)
 
@@ -1102,7 +1222,7 @@ node.
 
 ### phs_rhs!
 
-*[src/phsim/system.jl:1206](../../src/phsim/system.jl#L1206)*
+*[src/phsim/system.jl:1211](../../src/phsim/system.jl#L1211)*
 
     phs_rhs!(dx, s, x, u) -> dx
 
@@ -1112,7 +1232,7 @@ The vector field of the model (file header). Generic in the element type of `x`.
 
 ### phs_rhs
 
-*[src/phsim/system.jl:1308](../../src/phsim/system.jl#L1308)*
+*[src/phsim/system.jl:1330](../../src/phsim/system.jl#L1330)*
 
     phs_rhs(s, x, u) -> dx
 
@@ -1122,7 +1242,7 @@ The vector field of the EMT model `s` at state `x` and input `u` (allocating for
 
 ### phs_energy
 
-*[src/phsim/system.jl:1326](../../src/phsim/system.jl#L1326)*
+*[src/phsim/system.jl:1348](../../src/phsim/system.jl#L1348)*
 
     phs_energy(s, x) -> the total stored energy `H(x)` (pu*s).
 
@@ -1130,7 +1250,7 @@ The vector field of the EMT model `s` at state `x` and input `u` (allocating for
 
 ### phs_gradient
 
-*[src/phsim/system.jl:1361](../../src/phsim/system.jl#L1361)*
+*[src/phsim/system.jl:1383](../../src/phsim/system.jl#L1383)*
 
     phs_gradient(s, x) -> grad H(x)
 
@@ -1141,7 +1261,7 @@ angle.
 
 ### phs_matrices
 
-*[src/phsim/system.jl:1418](../../src/phsim/system.jl#L1418)*
+*[src/phsim/system.jl:1440](../../src/phsim/system.jl#L1440)*
 
     phs_matrices(s, x, u) -> (; J, R, g, z)
 
@@ -1157,7 +1277,7 @@ winding) and `R` the matrix `Rm`.
 
 ### phs_ledger
 
-*[src/phsim/system.jl:1522](../../src/phsim/system.jl#L1522)*
+*[src/phsim/system.jl:1544](../../src/phsim/system.jl#L1544)*
 
     phs_ledger(s, x, u; dx = nothing) -> NamedTuple
 
@@ -1187,20 +1307,11 @@ the stator they share; a machine owns its windings; a rotor owns the kinetic ene
 between the air-gap power `Tem omega` and the shaft. At a reduced node each element still owns
 its own inductor and resistor: their energies and losses are computed from the currents.
 
-    phs_ledger(cs, x, u; dx = nothing)
-
-The energy account at `x`: the physical model's, with the inputs the controllers set there,
-and after its components one per physical exciter (`<name>.exciter`): the stored energy of its
-field, the loss in its field circuit, the net power it receives (from the shaft and, for a DC
-exciter, from its amplifier, less what it delivers to the machine's field) and the rate of its
-energy along `dx` (the vector field if `dx` is not given). `supply` is then the turbine powers,
-the field powers of machines without a physical exciter and the DC exciters' amplifier powers.
-
 ---
 
 ### phs_network_mask
 
-*[src/phsim/system.jl:1749](../../src/phsim/system.jl#L1749)*
+*[src/phsim/system.jl:1771](../../src/phsim/system.jl#L1771)*
 
     phs_network_mask(s, L) -> BitVector
 
@@ -1215,7 +1326,7 @@ is not exactly one `:transformer` entry of `L`, or with converters or saturating
 
 ### phs_terminal_voltage
 
-*[src/phsim/system.jl:1802](../../src/phsim/system.jl#L1802)*
+*[src/phsim/system.jl:1824](../../src/phsim/system.jl#L1824)*
 
     phs_terminal_voltage(s, x, u) -> Dict(bus id => complex voltage)
 
@@ -1227,7 +1338,7 @@ the vector field. This is the eliminated variable of the unreduced model.
 
 ### phs_frame
 
-*[src/phsim/system.jl:1812](../../src/phsim/system.jl#L1812)*
+*[src/phsim/system.jl:1834](../../src/phsim/system.jl#L1834)*
 
     phs_frame(s, frame; theta0 = 0.0) -> PHSystem
 
@@ -1248,7 +1359,7 @@ rotor or scalar quantities and are unchanged.
 
 ### phs_rotate_network
 
-*[src/phsim/system.jl:1853](../../src/phsim/system.jl#L1853)*
+*[src/phsim/system.jl:1875](../../src/phsim/system.jl#L1875)*
 
     phs_rotate_network(s, x, theta) -> state
 
@@ -1262,7 +1373,7 @@ Only the first `s.n` entries (the physical model) are touched; controller states
 
 ### phs_cut_voltage
 
-*[src/phsim/system.jl:1876](../../src/phsim/system.jl#L1876)*
+*[src/phsim/system.jl:1898](../../src/phsim/system.jl#L1898)*
 
     phs_cut_voltage(s, x, u) -> Dict(bus id => complex voltage)
 
@@ -1274,7 +1385,7 @@ the eliminated multiplier of the unreduced model.
 
 ### phs_phases
 
-*[src/phsim/system.jl:1888](../../src/phsim/system.jl#L1888)*
+*[src/phsim/system.jl:1910](../../src/phsim/system.jl#L1910)*
 
     phs_phases(z, theta) -> (a, b, c)
 
@@ -1287,7 +1398,7 @@ phase value). The balanced model has no zero-axis component, so nothing is added
 
 ### phs_equilibrium
 
-*[src/phsim/system.jl:1898](../../src/phsim/system.jl#L1898)*
+*[src/phsim/system.jl:1920](../../src/phsim/system.jl#L1920)*
 
     phs_equilibrium(eq::EquilibriumResult; loads = :parallel, circuits = nothing,
                     const_power = false, stray_capacitance = 0.0) -> (s, x, u, report)
@@ -1313,7 +1424,7 @@ rest, not a periodic operating solution: T3 2d) and `report.core_flux` says how 
 
 ### phs_rest_residual
 
-*[src/phsim/system.jl:2159](../../src/phsim/system.jl#L2159)*
+*[src/phsim/system.jl:2181](../../src/phsim/system.jl#L2181)*
 
     phs_rest_residual(s, dx) -> the largest entry of the vector field `dx` at rest, the frame clock's row left out.
 
@@ -1321,7 +1432,7 @@ rest, not a periodic operating solution: T3 2d) and `report.core_flux` says how 
 
 ### phs_core_signals
 
-*[src/phsim/system.jl:2166](../../src/phsim/system.jl#L2166)*
+*[src/phsim/system.jl:2188](../../src/phsim/system.jl#L2188)*
 
     phs_core_signals(s, x) -> Vector of (; bus, lam, phase, im, iH, iS, segment, E_Lc, E_leak, E_core)
 

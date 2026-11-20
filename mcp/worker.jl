@@ -3,7 +3,7 @@
 # line; its own standard output and error go to outputs/mcp/worker.log (set by the server), so nothing it or the
 # simulator prints can reach the protocol stream. Design: docs/mcp/MCP_DESIGN.md, review 01.
 #
-# Messages in:  {"cmd": "build"|"run", "job": id, ...}, {"cmd": "cancel", "job": id}
+# Messages in:  {"cmd": "build"|"run"|"export", "job": id, ...}, {"cmd": "cancel", "job": id}
 # Messages out: {"type": "ready"}, {"type": "progress", "job", ...}, {"type": "done", "job", "result"},
 #               {"type": "failed", "job", "error"}
 
@@ -207,6 +207,40 @@ function job_run(m)
     return info
 end
 
+# ---- exporting -------------------------------------------------------------------------------------------------------
+
+"""Export a built model, or some of its devices, in port-Hamiltonian form (`phs_analysis_model`, `phs_subsystem`,
+`phs_export`): a folder of CSV files with `equations.md`, and `model.jld2`, under `outputs/mcp/exports/<id>/`."""
+function job_export(m)
+    mid = m["model_id"]; eid = m["export_id"]
+    mdir = under_out("models", mid); edir = under_out("exports", eid)
+    spec = JSON3.read(read(joinpath(mdir, "spec.json"), String), Dict{String,Any})
+    t0 = time()
+    cs, x0, u, _ = build(spec, mdir)
+    am = phs_analysis_model(cs, x0, u)
+    devs = String.(m["devices"]); kind = m["kind"]
+    sel = !isempty(devs) ? devs : kind !== nothing ? Symbol(kind) : collect(1:length(am.names))
+    sub = try
+        phs_subsystem(am, sel)
+    catch e
+        e isa ArgumentError || rethrow()
+        named = unique(am.component[am.kind .!= :network])
+        throw(ArgumentError(e.msg * ". Devices of this model: " * join(named, ", ") *
+                            "; network elements are named q_<bus> (node) and phi_<branch> (line, transformer, load)."))
+    end
+    phs_export(edir, sub); phs_export(joinpath(edir, "model.jld2"), sub)
+    info = Dict{String,Any}(
+        "export_id" => eid, "model_id" => mid, "selection" => isempty(devs) ? (kind === nothing ? "the whole model" : "kind " * kind) : join(devs, ", "),
+        "states" => length(sub.names), "in_form" => count(sub.in_form), "devices" => unique(sub.component),
+        "ports" => sub.ports, "inputs" => sub.sources, "shared_loss_with" => sub.shared_loss_with,
+        "state_dependent_entries" => count(sub.varies), "nonzero_entries" => count(!iszero, hcat(sub.J - sub.R, sub.Gp)),
+        "checks" => Dict(String(k) => v for (k, v) in pairs(sub.checks)),
+        "model_checks" => Dict(String(k) => v for (k, v) in pairs(am.checks)),
+        "folder" => relpath(edir, ROOT), "wall_seconds" => round(time() - t0, digits = 1), "created" => string(now()))
+    atomic_write(joinpath(edir, "export.json"), JSON3.write(info))
+    return info
+end
+
 # ---- the loop ---------------------------------------------------------------------------------------------------------
 
 function errtext(e)
@@ -224,7 +258,7 @@ for m in JOBS
     end
     send(Dict("type" => "started", "job" => job))
     try
-        res = m["cmd"] == "build" ? job_build(m) : m["cmd"] == "run" ? job_run(m) :
+        res = m["cmd"] == "build" ? job_build(m) : m["cmd"] == "run" ? job_run(m) : m["cmd"] == "export" ? job_export(m) :
               throw(ArgumentError("unknown command $(m["cmd"])"))
         send(Dict("type" => "done", "job" => job, "result" => res))
     catch e
