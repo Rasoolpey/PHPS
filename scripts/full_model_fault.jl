@@ -5,13 +5,14 @@
 # domain (the run completes); against PowerFactory's stored EMT run of the same fault (its governors and exciters are
 # the IEEEG1/IEEET1 block diagrams, ours physical: the first cycles are electromagnetic and comparable).
 # Only simulates; scripts/full_model_plots.jl draws the figures.
-# Run: julia --project=. scripts/full_model_fault.jl [--tstop=10] [--scenario=fault_bus16_3ph.json]
+# Run: julia --project=. scripts/full_model_fault.jl [--tstop=10] [--scenario=fault_bus16_3ph.json] [--save_dt=1e-3]
 using PHPS, LinearAlgebra, Printf, JSON3, JLD2
 root = normpath(joinpath(@__DIR__, ".."))
 opt(key, default) = (a = filter(x -> startswith(x, "--$key="), ARGS); isempty(a) ? default : split(a[1], "="; limit = 2)[2])
 dir = joinpath(root, "cases", "IEEE39Bus_FullModel")
 scen = opt("scenario", "fault_bus16_3ph.json")
 tstop = parse(Float64, opt("tstop", "10"))
+save_dt = parse(Float64, opt("save_dt", "1e-3"))     # 1e-4 or less for smooth phase waveforms
 t0 = time()
 fm = phs_full_model(dir; scenario = scen)
 cs, x0, u = fm.cs, fm.x0, fm.u
@@ -26,9 +27,9 @@ record = ("efd" => (x, u) -> phs_control_signals(cs, x).Efd,
           "stroke" => (x, u) -> Float64[PHPS._steam_stroke(cs.gov[j], x[cs.goff[j]+1]) for j in ks],
           "speed" => (x, u) -> Float64[x[PHPS._ip(m)] / (2m.w.H) for m in cs.s.machines])
 t1 = time()
-r = phs_simulate(cs, x0, u; tstop, faults = fm.faults, save_dt = 1e-3, record)
+r = phs_simulate(cs, x0, u; tstop, faults = fm.faults, save_dt, record)
 wall = time() - t1
-out = joinpath(root, "outputs", "ph", "full_model", splitext(scen)[1] * (tstop == 10 ? "" : "_t$(tstop)"))
+out = joinpath(root, "outputs", "ph", "full_model", splitext(scen)[1] * (tstop == 10 ? "" : "_t$(tstop)") * (save_dt == 1e-3 ? "" : "_dt$(save_dt)"))
 mkpath(out)
 phs_write_run(joinpath(out, "run.jld2"), r; model = cs,
               meta = Dict("case" => dir, "scenario" => scen, "tstop" => tstop, "fault_bus" => fm.faults[1].bus,

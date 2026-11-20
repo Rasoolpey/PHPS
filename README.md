@@ -92,8 +92,11 @@ stored run:
 
 ```
 julia --project=. scripts/full_model_fault.jl --tstop=1
-julia --project=. scripts/full_model_plots.jl
+julia --project=. scripts/full_model_plots.jl outputs/ph/full_model/fault_bus16_3ph_t1.0
 ```
+
+Example figures from these scripts are in [outputs/figures/](outputs/figures/README.md), with the commands that
+produced each one. They cover RMS and EMT runs and the instantaneous phase voltages.
 
 **From Julia:**
 
@@ -467,7 +470,7 @@ The format is the one of the Python PHPS, so its cases load unchanged. See [docs
 - RMS runs: `simulation_results.csv`, a JLD2 copy of the results, and `run.json`;
 - EMT runs (`phs_write_run`): one JLD2 file with the whole state trajectory, bus voltages, the energy account per
   component, the declared records and the git commit;
-- everything goes under `outputs/` (not in git).
+- everything goes under `outputs/` (not in git), except the example figures in `outputs/figures/`.
 
 ## Repository layout
 
