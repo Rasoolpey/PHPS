@@ -587,7 +587,8 @@ struct ShuntExciterTemplate{T<:Real} <: PHTemplateComponent
 end
 tpl_states(::ShuntExciterTemplate) = ["phi_f"]
 tpl_energy(c::ShuntExciterTemplate, x) = _exc_energy(c.e, x[1])
-tpl_gradient(c::ShuntExciterTemplate, x) = [_exc_field_volts(c.e, x[1]) / c.e.rF]
+# in a step the discrete gradient of W_f between the step's ends (`_EXC_STEP`, exciter.jl); pointwise otherwise
+tpl_gradient(c::ShuntExciterTemplate, x) = [_exc_field_volts_step(c.e, x[1]) / c.e.rF]
 tpl_step(c::ShuntExciterTemplate) = c.e.A == 0 ? :midpoint : :discrete_gradient
 function tpl_domain(c::ShuntExciterTemplate, x)
     isfinite(_deep(x[1])) || throw(DomainError(x[1], "ShuntExciterTemplate: the field flux must be finite"))
@@ -609,7 +610,7 @@ end
 @inline function tpl_rows!(dx, c::ShuntExciterTemplate, phi::Float64, omega::Float64)
     isfinite(phi) || throw(DomainError(phi, "ShuntExciterTemplate: the field flux must be finite"))
     kap, rF, va = _shunt_entries(c, phi)
-    dx[1] = kap * omega - rF * (_exc_field_volts(c.e, phi) / rF) + va
+    dx[1] = kap * omega - rF * (_exc_field_volts_step(c.e, phi) / rF) + va
     return dx
 end
 

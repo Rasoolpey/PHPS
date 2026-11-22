@@ -99,6 +99,22 @@ function phs_scales(s::PHSystem, x::AbstractVector{Float64})
     return sc
 end
 
+# ---- the shunt exciters' fields in a step (review 09) ----
+
+# each physical exciter's field flux at the step's start, by name: with it the field current of the step is the
+# discrete gradient of the field's storage between the step's ends (`_EXC_STEP`, exciter.jl); nothing without them
+_exc_context(::PHSystem, x0) = nothing
+function _exc_context(cs::PHControlled, x0)
+    d = nothing
+    for j in eachindex(cs.exc)
+        e = cs.exc[j]
+        e isa PHPhysicalExciter || continue
+        d === nothing && (d = Dict{String,Float64}())
+        d[e.name] = Float64(x0[cs.xoff[j]])
+    end
+    return d
+end
+
 # ---- saturating cores in a step (record section 23) ----
 
 # the step's discrete-gradient currents of every core, from the step's ends: the rotated ends e^{-j beta} x0,
@@ -136,16 +152,23 @@ function _step_residual!(F, fm, s::PHModel, x0, x1, u, frozen, h; clock = nothin
     ps = _phys(s)
     xm = (x0 .+ x1) ./ 2
     if isempty(ps.cores)
-        _frozen_rhs!(fm, s, xm, u, frozen)
+        _EXC_STEP[] = _exc_context(s, x0)            # the shunt exciters' fields: discrete gradient (exciter.jl)
+        try
+            _frozen_rhs!(fm, s, xm, u, frozen)
+        finally
+            _EXC_STEP[] = nothing
+        end
         @. F = x1 - x0 - h * fm
         return nothing
     end
     ctx = _core_context(ps, x0, x1, h)
     ps.step[] = ctx
+    _EXC_STEP[] = _exc_context(s, x0)
     try
         _frozen_rhs!(fm, s, xm, u, frozen)
     finally
         ps.step[] = nothing
+        _EXC_STEP[] = nothing
     end
     @. F = x1 - x0 - h * fm
     wb = ps.omega_b
@@ -341,9 +364,11 @@ end
 Integrate the model (a `PHSystem`, or a `PHControlled` with its exciters and governors) from
 `x0` with the implicit midpoint rule. For a controlled model the energy account is the physical
 model's, with the inputs the controllers set at each evaluated state, and one more component
-per physical exciter. A physical exciter's field energy is not quadratic (it saturates), so
-for that component `closure` is not zero to rounding: it is the midpoint rule's energy error,
-of second order in the step. Each segment between fault
+per physical exciter. A DC shunt exciter's field energy is not quadratic (it saturates); in a
+step its field current is the discrete gradient of that energy between the step's ends (review
+09, `_EXC_STEP`), so its `closure` is zero to rounding as for the quadratic storages; the same
+holds for a brushless exciter's field storage (which has an energy balance but no
+port-Hamiltonian form). Each segment between fault
 switching times uses a fixed step: `h` if given, otherwise `hscale` times `phs_step_rule` at the
 segment's start, shortened so that a whole number of steps fits. Nothing changes a state at an
 event; the fault conductance changes. `stops` are further times at which a segment ends, so
@@ -408,6 +433,7 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
     xold, f0, f1, xi = similar(x), similar(x), similar(x), similar(x)
     scheme, scheme_max, incsum, simpson, thr, moved = (zeros(nc) for _ in 1:6)
     E_start = Float64[]
+    E_end = Float64[]
     tot = Dict(:scheme => 0.0, :scheme_max => 0.0, :simpson => 0.0, :throughput => 0.0,
                :moved => 0.0, :switched => 0.0)
     motorc = findall(==(:motor), _ckind(s))           # the motors' components (relay trips: switching jumps)
@@ -557,6 +583,7 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
         L0 = phs_ledger(s, x, ub)                  # one-sided: this segment's inputs
         if q == 1
             E_start = copy(L0.energy)
+            E_end = E_start
             if sample_at === nothing
                 save!(t0, L0)
             else
@@ -652,10 +679,12 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
             @. F = dprev / hq                      # the step's increment as a rate
             _bridge_accumulate!(s, xm, ub, hq)     # switching bridges: the step's applied voltage (the measurement)
             ps.step[] = ctx                        # the step's currents in the step's account (record section 23)
+            _EXC_STEP[] = _exc_context(s, x)       # and the exciters' discrete-gradient field currents (x: the step's start)
             Lm, Li = try
                 phs_ledger(s, xm, ub), phs_ledger(s, xm, ub; dx = F)   # energy increments along x1 - x0
             finally
                 ps.step[] = nothing
+                _EXC_STEP[] = nothing
             end
             tn = t0 + (k - 1) * hq
             # a step ending on a controller call: its end is saved after the call (below), as PowerFactory
@@ -723,6 +752,7 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
                 end
             end
             L0 = L1
+            E_end = L1.energy                      # the account's end: the last step's, whatever was saved (review 09)
             sample_at === nothing && (k % stride == 0 || k == nsteps) && save!(t0 + k * hq, L1)
             _set_frame!(ub, ps, t0 + k * hq)
             monitor === nothing || monitor(t0 + k * hq, x, ub)
@@ -746,7 +776,9 @@ function phs_simulate(s::PHModel, x0::AbstractVector{Float64}, u::PHInput{Float6
                                storage_closure = (Sf - twS0) - twacc.dS[],
                                boundary = twacc.boundary[]) :
                      nothing)
-    closure = incsum .- (Es[end] .- E_start)
+    # against the energy at the run's actual final state, not the last saved one: with `sample_at` the last sample need
+    # not be the end, while `incsum` covers every step (review 09)
+    closure = incsum .- (E_end .- E_start)
     # a record of numbers is a vector, a record of vectors a matrix with one column per saved time
     records = Dict{String,Any}(n => (isempty(v) || v[1] isa Number) ? collect(Float64, v) :
                                     reduce(hcat, [collect(Float64, y) for y in v]) for (n, _, v) in rec)

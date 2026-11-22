@@ -551,13 +551,14 @@
             end
 
             # a short fault: the discrete balance holds for every component, exciters included;
-            # the exciters' energy is not quadratic, so its closure is the scheme's error
+            # the exciters' energy is not quadratic, and the step's discrete gradient of it (review 09)
+            # makes its closure as small as the quadratic storages'
             r = phs_simulate(cs, xs, us; tstop = 0.006, faults = [PHFault(16, 0.001, 0.002, 0.004)], tol = 1e-14)
             kr = findall(==(:exciter), r.kind)
             @test length(kr) == 6 && size(r.energy, 1) == length(r.names)
             @test all(r.scheme_max .<= 1e-10 .* r.throughput)
             @test r.total.scheme_max < 1e-10 * r.total.throughput
-            @test all(abs.(r.closure[kr]) .<= 1e-6 .* r.moved[kr])
+            @test all(abs.(r.closure[kr]) .<= 1e-10 .* r.moved[kr] .+ 1e-12 .* r.throughput[kr])
             @test [phs_energy(cs, r.X[:, k]) for k in eachindex(r.t)] ≈ r.H rtol = 1e-13
             @test r.X[1:247, 1] == x0
         end
@@ -724,7 +725,7 @@
             kr = findall(==(:exciter), r.kind)
             @test length(kr) == 3
             @test all(r.scheme_max .<= 1e-10 .* r.throughput) && r.total.scheme_max < 1e-10 * r.total.throughput
-            @test all(abs.(r.closure[kr]) .<= 1e-6 .* r.moved[kr])
+            @test all(abs.(r.closure[kr]) .<= 1e-10 .* r.moved[kr] .+ 1e-12 .* r.throughput[kr])   # discrete gradient (review 09)
             @test [phs_energy(cs, r.X[:, k]) for k in eachindex(r.t)] ≈ r.H rtol = 1e-13
         end
 

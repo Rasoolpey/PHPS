@@ -86,6 +86,12 @@ const PHS_NS = PHPS.phs_nstates
             @test isfile(joinpath(cs2, "equations.md")) && rd("../sub/Gp.csv") == sub.Gp && countlines(joinpath(cs2, "ports.csv")) == length(sub.ports) + 1
             fb = PHPS.JLD2.load(phs_export(joinpath(dir, "sub.jld2"), sub))
             @test fb["Gp"] == sub.Gp && fb["equations"] == eqs && fb["index"] == sub.index
+            # the group's energy is relative to x0 and carries none of the rest's (review 09); its gradient is the effort
+            @test sub.energy(sub.x0) == 0
+            ds = sub.scale .* sub.in_form; hh = 1e-6
+            @test abs((sub.energy(sub.x0 .+ hh .* ds) - sub.energy(sub.x0 .- hh .* ds)) / 2hh - dot(sub.effort, ds)) <
+                  1e-6 * (sum(abs.(sub.effort .* ds)) + 1e-12)
+            @test sub.Pf === nothing && isempty(sub.fports)                # no steam unit in these models
         end
     end
 end

@@ -46,15 +46,33 @@ ifault = v16[duringf] ./ f.R
 speeds = reduce(hcat, [[r.X[PHPS._ip(m), k] / (2m.w.H) for m in s.machines] for k in eachindex(r.t)])
 rep = Dict(
     "states" => length(x0), "tstop" => tstop, "wall_s" => wall,
+    # two different statements (review 09): `scheme` is the step identity grad H_c(x_m)'(x1 - x0) = h (port - loss)(x_m),
+    # summed (the continuous balance at the midpoint, and the solve); `closure` compares the summed increments with
+    # H_c(x_end) - H_c(x_0) from the energy functions, so scheme and closure together give the discrete energy balance
+    # H_c(x_end) - H_c(x_0) = sum h (port - loss)(x_m) of every component, quadratic or not
     "energy" => Dict("scheme_max_over_throughput" => r.total.scheme_max / max(r.total.throughput, 1e-300),
-                     "scheme" => r.total.scheme, "throughput" => r.total.throughput),
+                     "scheme" => r.total.scheme, "throughput" => r.total.throughput,
+                     "closure_total_over_throughput" => abs(sum(r.closure)) / max(r.total.throughput, 1e-300),
+                     "balance_total_over_throughput" => abs(r.total.scheme - sum(r.closure)) / max(r.total.throughput, 1e-300),
+                     "closure_by_kind" => Dict(String(k) => Dict(
+                         "components" => count(==(k), r.kind),
+                         "max_abs_closure_over_own_moved" => maximum(abs(r.closure[c]) / max(r.moved[c], 1e-300) for c in findall(==(k), r.kind)),
+                         "max_abs_closure_over_own_throughput" => maximum(abs(r.closure[c]) / max(r.throughput[c], 1e-300) for c in findall(==(k), r.kind)),
+                         "max_abs_scheme_over_own_throughput" => maximum(abs(r.scheme[c]) / max(r.throughput[c], 1e-300) for c in findall(==(k), r.kind)))
+                         for k in unique(r.kind))),
     "bus16_voltage_before" => v16[1], "bus16_voltage_during_fault_mean" => sum(v16[duringf]) / length(duringf),
     "fault_current_pu_mean" => sum(ifault) / length(ifault), "fault_current_pu_max" => maximum(ifault),
     "speed_min" => minimum(speeds), "speed_max" => maximum(speeds),
     "speed_end_spread" => maximum(speeds[:, end]) - minimum(speeds[:, end]),
     "voltage_end_bus16" => v16[end])
 open(joinpath(out, "report.json"), "w") do io; JSON3.pretty(io, rep); end
-@printf("run: %.1f s in %.0f s wall; energy scheme max / throughput %.2e\n", tstop, wall, rep["energy"]["scheme_max_over_throughput"])
+@printf("run: %.1f s in %.0f s wall; energy scheme max / throughput %.2e; closure %.2e; balance %.2e (of the throughput)\n",
+        tstop, wall, rep["energy"]["scheme_max_over_throughput"], rep["energy"]["closure_total_over_throughput"],
+        rep["energy"]["balance_total_over_throughput"])
+for (k, v) in sort(collect(rep["energy"]["closure_by_kind"]); by = first)
+    @printf("  %-12s %3d components: closure / own throughput <= %.2e, scheme / own throughput <= %.2e\n", k,
+            v["components"], v["max_abs_closure_over_own_throughput"], v["max_abs_scheme_over_own_throughput"])
+end
 @printf("bus 16: %.4f pu before, %.4f pu during the fault; fault current %.2f pu (system base) mean, %.2f max\n",
         v16[1], rep["bus16_voltage_during_fault_mean"], rep["fault_current_pu_mean"], rep["fault_current_pu_max"])
 @printf("speeds: %.5f to %.5f pu; spread at the end %.2e; bus 16 at the end %.4f pu\n", rep["speed_min"], rep["speed_max"],

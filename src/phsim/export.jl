@@ -20,6 +20,7 @@ analysis outside the simulator. Fields:
 | `A` | the linearisation: derivative of the rates with respect to the states at `x0` (automatic differentiation) |
 | `J`, `R`, `G`, `input`, `effort` | the structure at `x0`: on the rows in the form, rates = `(J - R) effort + G input` (less `Pf * vf` where a steam unit has feedthrough) |
 | `Q` | derivative of the efforts with respect to the states: the Hessian of the stored energy of the rows in the form (central differences; `nothing` if `hessian = false`) |
+| `Pf`, `Sf`, `vf`, `fports` | the steam units' feedthrough (`steam = :exergy`): the rates carry `- Pf vf`, the reservoirs' outputs are `Pf' effort + Sf vf`, and `[[R, Pf], [Pf', Sf]]` is the augmented dissipation; `fports` names each entry of `vf` (`nothing` and empty without steam units) |
 | `ports`, `outside` | the name of each input, and what is outside the form |
 | `checks` | consistency of this export (see below) |
 | `rate`, `energy`, `structure` | functions of a state, for analyses away from `x0` |
@@ -66,6 +67,9 @@ function phs_analysis_model(m::Union{PHSystem,PHControlled}, x0::AbstractVector,
     return (; names, component, kind, in_form, x0, scale = sc, rate0 = f0, A, J = Matrix(st.J), R = Matrix(st.R),
             G = Matrix(st.G), input = collect(st.v), effort = collect(st.z), Q,
             Pf = feed ? Matrix(st.Pf) : nothing, vf = feed ? collect(st.vf) : nothing,
+            # the feedthrough's own block and its ports' names (review 09): with them the reservoirs' outputs
+            # yf = Pf' effort + Sf vf and the augmented dissipation [[R, Pf], [Pf', Sf]] follow from the export alone
+            Sf = feed ? Matrix(st.Sf) : nothing, fports = feed ? string.(st.fports) : String[],
             ports = string.(st.ports), outside = string.(st.excluded), checks, rate, energy, structure)
 end
 function phs_analysis_model(dir::AbstractString; scenario::AbstractString = "fault_bus16_3ph.json", kwargs...)
@@ -104,7 +108,8 @@ Write the analysis model `am` (`phs_analysis_model`). A path ending in `.jld2` g
 strings; readable without this package). Any other path is taken as a folder and filled with plain CSV files for other
 tools: `states.csv` (a header line, then index from 1, name, component, kind, in_form, x0, scale, rate0, effort), one
 file per matrix without a header (`A.csv`, `J.csv`, `R.csv`, `G.csv`, and `Q.csv`, `Pf.csv` if present), `inputs.csv`
-(port, value), `feedthrough.csv` (the values `vf` that `Pf` multiplies, if present), `outside.csv` and `checks.csv`.
+(port, value), `Sf.csv` and `feedthrough.csv` (port, value: the inputs `vf` that `Pf` and `Sf` act on, if present),
+`outside.csv` and `checks.csv`.
 Files of an earlier export into the same folder that this one does not write are removed.
 """
 function phs_export(path::AbstractString, am)
@@ -116,7 +121,7 @@ function phs_export(path::AbstractString, am)
                              "effort" => am.effort, "ports" => am.ports, "outside" => am.outside,
                              "checks" => Dict(String(k) => v for (k, v) in pairs(am.checks)))
         am.Q === nothing || (d["Q"] = am.Q)
-        am.Pf === nothing || (d["Pf"] = am.Pf; d["vf"] = am.vf)
+        am.Pf === nothing || (d["Pf"] = am.Pf; d["vf"] = am.vf; d["Sf"] = am.Sf; d["fports"] = am.fports)
         if hasproperty(am, :Gp)                      # a subsystem (`phs_subsystem`): its ports and its equations
             merge!(d, Dict("index" => am.index, "Gp" => am.Gp, "port_effort" => am.port_effort, "port_power" => am.port_power,
                            "sources" => am.sources, "feedthrough" => am.feedthrough, "A_outside" => am.A_outside,
@@ -126,7 +131,7 @@ function phs_export(path::AbstractString, am)
         return path
     end
     mkpath(path)
-    for f in ("Q.csv", "Pf.csv", "feedthrough.csv", "Gp.csv", "ports.csv", "A_outside.csv", "outside_states.csv", "equations.md")   # optional files: none may survive from an earlier export
+    for f in ("Q.csv", "Pf.csv", "Sf.csv", "feedthrough.csv", "Gp.csv", "ports.csv", "A_outside.csv", "outside_states.csv", "equations.md")   # optional files: none may survive from an earlier export
         rm(joinpath(path, f); force = true)
     end
     num(v) = repr(Float64(v))
@@ -139,7 +144,7 @@ function phs_export(path::AbstractString, am)
         end
     end
     sub = hasproperty(am, :Gp)
-    for (nm, M) in (("A", am.A), ("J", am.J), ("R", am.R), ("G", am.G), ("Q", am.Q), ("Pf", am.Pf),
+    for (nm, M) in (("A", am.A), ("J", am.J), ("R", am.R), ("G", am.G), ("Q", am.Q), ("Pf", am.Pf), ("Sf", am.Sf),
                     ("Gp", sub ? am.Gp : nothing), ("A_outside", sub ? am.A_outside : nothing))
         M === nothing && continue
         open(joinpath(path, nm * ".csv"), "w") do io
@@ -163,17 +168,11 @@ function phs_export(path::AbstractString, am)
             for s in am.outside_states; println(io, q(s)); end
         end
         open(io -> phs_equations(io, am), joinpath(path, "equations.md"), "w")
-        if am.feedthrough !== nothing && any(!iszero, am.feedthrough)
-            open(joinpath(path, "feedthrough.csv"), "w") do io
-                println(io, "value")
-                for v in am.feedthrough; println(io, num(v)); end
-            end
-        end
     end
-    if am.vf !== nothing
+    if am.vf !== nothing                             # the feedthrough ports: name and the input vf that Pf, Sf act on
         open(joinpath(path, "feedthrough.csv"), "w") do io
-            println(io, "value")
-            for v in am.vf; println(io, num(v)); end
+            println(io, "port,value")
+            for k in eachindex(am.vf); println(io, q(am.fports[k]), ",", num(am.vf[k])); end
         end
     end
     open(joinpath(path, "outside.csv"), "w") do io
@@ -208,12 +207,13 @@ Fields, beside those of `am` restricted to the chosen states (`names`, `componen
 | `index` | the chosen states' indices in `am` |
 | `Gp`, `ports`, `port_effort`, `port_power` | the interconnection ports: one per neighbouring state whose effort acts on the group, its name, its effort at `x0`, and the power it delivers to the group there |
 | `G`, `sources`, `input` | the external inputs that act on the group |
-| `feedthrough` | the term subtracted on the group's rows where a steam unit has feedthrough (zero otherwise) |
+| `feedthrough` | the term subtracted on the group's rows where a steam unit has feedthrough (zero otherwise), `Pf * vf` |
+| `Pf`, `Sf`, `vf`, `fports` | the feedthrough ports acting on the group: `Pf` on its rows, their block of `Sf`, inputs and names (`nothing` and empty when none acts) |
 | `A_outside`, `outside_states` | for the linearisation: how the group's rates depend on states outside it |
 | `varies` | for each entry of `[J - R, Gp]`: whether it changes with the group's state (sampled; the numbers are those at `x0`) |
 | `shared_loss_with` | the neighbouring devices that share a loss term with the group (a steam unit with its machine's rotor, for example): include them for a group whose ports all conserve power |
 | `checks` | `structure` (the rates against the right-hand side above, rows in the form, over the scale), `J_skew`, `R_min`, `shared_loss_entries` (the number of loss entries shared with neighbours: zero when every port conserves power), `varies_samples` (how many of the two sampled states `varies` rests on), `energy_separable` (the part of the group's efforts that depends on outside states, scaled and relative: zero when the group has an energy of its own) |
-| `rate`, `energy`, `structure` | functions of the group's state, the rest of the model held at `x0` |
+| `rate`, `energy`, `structure` | functions of the group's state, the rest of the model held at `x0`; `energy` is the stored energy relative to `x0`, `H(x) - H(x0)`, equal to the group's own `H_S(x_S) - H_S(x0_S)` when the energy separates |
 """
 function phs_subsystem(am, select)
     N = length(am.names); S = _analysis_select(am, select)
@@ -246,6 +246,13 @@ function phs_subsystem(am, select)
         B1 = hcat(st.J - st.R, st.Gp)
         varies .|= abs.(B1 .- B0) .> 1e-9 .* abs.(B0) .+ 1e-300          # relative to the entry itself (the entries span many decades)
     end
+    # the feedthrough ports that act on the group (review 09): their columns of Pf on the group's rows, their block of
+    # Sf, their inputs and names, so that the group's reservoir outputs and augmented dissipation can be rebuilt
+    fc = am.Pf === nothing ? Int[] : [k for k in axes(am.Pf, 2) if any(!iszero, view(am.Pf, S, k))]
+    Pf_S = isempty(fc) ? nothing : am.Pf[S, fc]
+    Sf_S = isempty(fc) ? nothing : am.Sf[fc, fc]
+    vf_S = isempty(fc) ? nothing : am.vf[fc]
+    fports_S = isempty(fc) ? String[] : am.fports[fc]
     RS = Symmetric((am.R[S, S][form, form] + am.R[S, S][form, form]') / 2)
     Ds = Diagonal(am.scale[S])
     checks = (; structure = isempty(form) ? 0.0 : maximum(abs.(rhs[form] .- am.rate0[S][form]) ./ am.scale[S][form]),
@@ -262,8 +269,11 @@ function phs_subsystem(am, select)
             sources = am.ports[sc_], input = am.input[sc_], feedthrough = feed0[S], A_outside = am.A[S, oc],
             outside_states = am.names[oc], varies, checks,
             shared_loss_with = unique(am.component[[k for k in Rm if any(!iszero, view(am.R, S, k))]]), rate = xs -> am.rate(embed(xs))[S],
-            energy = xs -> am.energy(embed(xs)), structure,
-            Pf = nothing, vf = nothing, outside = String[n for n in am.names[S][.!am.in_form[S]]])
+            # the group's stored energy relative to x0, the rest held there: H(x) - H(x0) with x the group's state embedded,
+            # which is H_S(x_S) - H_S(x0_S) when the energy separates (`checks.energy_separable`); a storage is defined up
+            # to a constant, and this one carries none of the rest's energy (review 09)
+            energy = let H0 = am.energy(am.x0); xs -> am.energy(embed(xs)) - H0; end, structure,
+            Pf = Pf_S, vf = vf_S, Sf = Sf_S, fports = fports_S, outside = String[n for n in am.names[S][.!am.in_form[S]]])
 end
 
 function _analysis_select(am, select)

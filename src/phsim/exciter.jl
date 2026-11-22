@@ -126,6 +126,27 @@ state_names(::PHShuntExciter) = ["phi_f", "xa", "xf"]
 # the amplifier's voltage in the field circuit
 @inline _exc_amp_volts(e::PHShuntExciter, xa) = e.b * clamp(xa, e.VRMIN, e.VRMAX)
 
+# ---- the field in a step: Gonzalez's discrete gradient (review 09) ----
+# The field's storage W_f is not quadratic, so the midpoint rule with the pointwise field current i_f(phi_m) does not
+# keep W_f(phi_1) - W_f(phi_0) = h (port - loss). During a step's residual and its account the integrator sets
+# `_EXC_STEP[]` to each shunt exciter's flux at the step's start (`_exc_context`, midpoint.jl); the field current is
+# then the discrete gradient of W_f between the step's ends phi_0 and phi_1 = 2 phi_m - phi_0, the mean of i_f over
+# [phi_0, phi_1] = (W_f(phi_1) - W_f(phi_0)) / (phi_1 - phi_0), and every row, output and loss in which i_f enters
+# (the flux row, the shaft power, the amplifier's power, the field loss, the account) uses that one value. The mean is
+# taken by five-point Gauss-Legendre quadrature, which avoids the cancellation of the energy difference; for the
+# steps' flux increments its error is far below rounding (i_f is analytic away from zero flux, where it is C1).
+# Outside a step (initialisation, structure checks, exports) `_EXC_STEP[]` is `nothing` and i_f is pointwise.
+const _EXC_STEP = Ref{Union{Nothing,Dict{String,Float64}}}(nothing)
+const _GL5 = ((0.0, 128 / 225), (-0.5384693101056831, 0.4786286704993665), (0.5384693101056831, 0.4786286704993665),
+              (-0.906179845938664, 0.2369268850561891), (0.906179845938664, 0.2369268850561891))
+# r_F i_f in a step (the discrete gradient), or pointwise outside one; `phi` is the step's midpoint flux
+@inline function _exc_field_volts_step(e::PHShuntExciter, phi)
+    ctx = _EXC_STEP[]
+    (ctx === nothing || !haskey(ctx, e.name)) && return _exc_field_volts(e, phi)
+    half = phi - ctx[e.name]                       # (phi_1 - phi_0) / 2
+    return sum(w * _exc_field_volts(e, phi + half * t) for (t, w) in _GL5) / 2
+end
+
 """The stored energy of the exciter's field, `integral_0^phi i_f dphi` (pu*s); even in `phi`."""
 function _exc_energy(e::PHShuntExciter, phi)
     e.A == 0 && return (1 + e.n * e.KE) * phi^2 / (2 * e.n * e.TE * e.rF)
@@ -154,7 +175,7 @@ function _exc_rhs!(dx, e::PHShuntExciter, x, vterm, Vref, omega, ifd, rec::ModeR
     phi, xa, xf = x[1], x[2], x[3]
     efd = omega * _exc_x(e, phi)
     verr = Vref - vterm - e.KF * (efd - xf) / e.TF
-    dx[1] = _exc_vf(e, phi, omega) + _exc_amp_volts(e, xa) - _exc_field_volts(e, phi)
+    dx[1] = _exc_vf(e, phi, omega) + _exc_amp_volts(e, xa) - _exc_field_volts_step(e, phi)
     dx[2] = nonwindup(rec, xa, (e.KA * verr - xa) / e.TA, e.VRMIN, e.VRMAX)
     dx[3] = (efd - xf) / e.TF
     return dx
@@ -175,7 +196,7 @@ with respect to its first state; `flux_rate`, that state's rate.
 """
 @inline function _exc_powers(e::PHShuntExciter, phi, xa, omega, ifd)
     vf = _exc_vf(e, phi, omega)
-    volts = _exc_field_volts(e, phi)
+    volts = _exc_field_volts_step(e, phi)          # in a step: the discrete gradient (see `_EXC_STEP`)
     i_f = volts / e.rF
     amp = _exc_amp_volts(e, xa) * i_f
     shaft, field = vf * (ifd + i_f), vf * ifd
@@ -296,8 +317,18 @@ beyond.
 end
 
 @inline _exc_se(e::PHBrushlessExciter, x) = e.A == 0 ? zero(x) : e.A * exp(e.B * x)
+# the field's storage gradient over g TE, (KE + SE(x)) x; in a step (`_EXC_STEP`, review 09) its discrete gradient,
+# the mean over the step's ends [x_0, x_1 = 2 x_m - x_0] (five-point Gauss-Legendre, as for the shunt exciter), so that
+# W(x_1) - W(x_0) = h (P_reg - P_tr - g VFE^2) over the step with every term at that one value
+@inline _bx_phi(e::PHBrushlessExciter, x) = (e.KE + _exc_se(e, x)) * x
+@inline function _bx_phi_step(e::PHBrushlessExciter, x)
+    ctx = _EXC_STEP[]
+    (ctx === nothing || !haskey(ctx, e.name)) && return _bx_phi(e, x)
+    half = x - ctx[e.name]
+    return sum(w * _bx_phi(e, x + half * t) for (t, w) in _GL5) / 2
+end
 # the signal proportional to the exciter's field current
-@inline _bx_vfe(e::PHBrushlessExciter, x, IFD) = (e.KE + _exc_se(e, x)) * x + e.KD * IFD
+@inline _bx_vfe(e::PHBrushlessExciter, x, IFD) = _bx_phi_step(e, x) + e.KD * IFD
 # the rectifier's loading and the machine's field voltage in the report's per unit
 @inline _bx_in(e::PHBrushlessExciter, x, IFD) = x > 0 ? e.KC * max(IFD, zero(IFD)) / x : oftype(x, Inf)
 @inline _bx_efd(e::PHBrushlessExciter, x, IFD, omega) = x > 0 ? _fex(_bx_in(e, x, IFD)) * omega * x : zero(x * omega * IFD)
@@ -341,7 +372,7 @@ the armature `tr`, the loss, and the power the shaft gives, `shaft = field - tr 
     shaft = field + port
     return (; vf, shaft, field, reg, tr, loss = e.g * vfe^2, port,
             tport = abs(shaft) + abs(field), outside = zero(shaft),
-            slope = e.g * e.TE * (e.KE + _exc_se(e, xE)) * xE, flux_rate = (vr - vfe) / e.TE,
+            slope = e.g * e.TE * _bx_phi_step(e, xE), flux_rate = (vr - vfe) / e.TE,
             VFE = vfe, EFD = efd, IN = _bx_in(e, xE, IFD))
 end
 
