@@ -208,45 +208,56 @@ let f = joinpath(root, "outputs", "paper", "robustness_study.json")
 end
 
 # ---------------------------------------------------------------- 6. "the same model": network ringing and eigenvalues
-# (a) bus-17 voltage magnitude after the fault is removed, PowerFactory EMT and PHPS; (b) the frequencies of the ringing
-# fitted by matrix pencil at four buses (outputs/paper/ringing_modes.json, scripts/paper/ringing_modes.jl) against the
-# eigenfrequencies of the linearization of PHPS's own EMT model (dq frame). Fits at the 5 kHz Nyquist limit of the
-# 100 us traces are sampling artifacts and are left out.
+# Two events of the PowerFactory comparison case, one row each: the fault applied at bus 16 (the faulted network) and the
+# fault removed (the network without the fault). Left: the bus-17 voltage magnitude, PowerFactory EMT and PHPS. Right:
+# the frequencies of the ringing fitted by matrix pencil 0.2-12 ms after the event at four buses (outputs/paper/
+# ringing_modes.json, scripts/paper/ringing_modes.jl), against the eigenfrequencies of the linearization of PHPS's own EMT
+# model of that network (dq frame; the voltage magnitude does not depend on the frame). Only 0-4 kHz is shown: near the
+# 5 kHz Nyquist limit of the 100 us traces the fits are aliased (the 4.40 kHz component at bus 18 after the removal is
+# the 5.60 kHz eigenvalue folded) and are not used.
 let f = joinpath(root, "outputs", "paper", "ringing_modes.json"),
     ft = joinpath(root, "outputs", "ph", "pf_compare_ph_fault_bus16_10s_controllers_series_all", "traces.jld2")
     if isfile(f) && isfile(ft)
         d = JSON3.read(read(f, String)); tr = load(ft)
-        t, toff, ids = tr["t"], tr["t_off"], tr["bus_ids"]
-        fmax = 4900.0
-        fig = Figure(size = (DOUBLE, 210))
-        a1 = Axis(fig[1, 1], xlabel = "time after fault removal [ms]", ylabel = "|V| bus 17 [pu]",
-                  title = "(a) ringing after removal")
-        w = findall(x -> toff - 1e-3 <= x <= toff + 1.2e-2, t)
-        i17 = findfirst(==(17), ids)
-        lines!(a1, 1e3 .* (t[w] .- toff), tr["pfV"][i17, w], color = :gray30, linewidth = 1.6, label = "PowerFactory EMT")
-        lines!(a1, 1e3 .* (t[w] .- toff), tr["phV"][i17, w], color = cols[1], linewidth = 0.8, linestyle = :dash,
-               label = "PHPS")
+        haskey(d, :ringing_fault) || error("rerun scripts/paper/ringing_modes.jl (no fault-on fits in $f)")
+        t, ids = tr["t"], tr["bus_ids"]
+        fmax = 4000.0
+        fig = Figure(size = (DOUBLE, 330))
         buses = ["bus15", "bus16", "bus17", "bus18"]
-        a2 = Axis(fig[1, 2], xlabel = "frequency [kHz]", title = "(b) fitted ringing and PHPS eigenvalues",
-                  yticks = (0:length(buses), vcat(["eigenvalues"], ["bus " * b[4:end] for b in buses])),
-                  limits = ((0, 5), (-0.6, length(buses) + 0.6)))
-        ef = [m.f_hz for m in d.eigen_modes if m.f_hz < fmax]
-        vlines!(a2, ef ./ 1e3, color = (:gray70, 0.6), linewidth = 0.5)
-        scatter!(a2, ef ./ 1e3, zeros(length(ef)), marker = :vline, markersize = 8, color = :black,
-                 label = "eigenvalue of PHPS's linearization")
-        lines!(a2, [NaN], [NaN], color = :gray30, linewidth = 1.6, label = "|V|, PowerFactory EMT")
-        lines!(a2, [NaN], [NaN], color = cols[1], linewidth = 0.8, linestyle = :dash, label = "|V|, PHPS")
-        for (k, b) in enumerate(buses)
-            pf = [m.f for m in d.ringing[b].powerfactory if m.f < fmax]
-            ph = [m.f for m in d.ringing[b].phps if m.f < fmax]
-            scatter!(a2, pf ./ 1e3, fill(k + 0.12, length(pf)), marker = :circle, markersize = 6, color = :white,
-                     strokecolor = :gray20, strokewidth = 0.8, label = k == 1 ? "fit, PowerFactory EMT" : nothing)
-            scatter!(a2, ph ./ 1e3, fill(k - 0.12, length(ph)), marker = :xcross, markersize = 5, color = cols[1],
-                     label = k == 1 ? "fit, PHPS EMT" : nothing)
+        i17 = findfirst(==(17), ids)
+        rows = ((tr["t_on"], "applied", d.ringing_fault, d.eigen_modes_fault, "faulted network"),
+                (tr["t_off"], "removed", d.ringing, d.eigen_modes, "network without the fault"))
+        local a2
+        for (r, (t0, ev, rg, em, net)) in enumerate(rows)
+            a1 = Axis(fig[r, 1], xlabel = r == 2 ? "time after the event [ms]" : "", ylabel = "|V| bus 17 [pu]",
+                      title = "($(Char('a' + 2(r-1)))) fault $ev at bus 16")
+            w = findall(x -> t0 - 1e-3 <= x <= t0 + 1.2e-2, t)
+            lines!(a1, 1e3 .* (t[w] .- t0), tr["pfV"][i17, w], color = :gray30, linewidth = 1.6)
+            lines!(a1, 1e3 .* (t[w] .- t0), tr["phV"][i17, w], color = cols[1], linewidth = 0.8, linestyle = :dash)
+            a2 = Axis(fig[r, 2], xlabel = r == 2 ? "frequency [kHz]" : "",
+                      title = "($(Char('b' + 2(r-1)))) fitted ringing and eigenvalues of the $net",
+                      yticks = (0:length(buses), vcat(["eigenvalues"], ["bus " * b[4:end] for b in buses])),
+                      limits = ((0, 4), (-0.6, length(buses) + 0.6)))
+            ef = [m.f_hz for m in em if m.f_hz < fmax]
+            vlines!(a2, ef ./ 1e3, color = (:gray70, 0.6), linewidth = 0.5)
+            scatter!(a2, ef ./ 1e3, zeros(length(ef)), marker = :vline, markersize = 8, color = :black,
+                     label = "eigenvalue of PHPS's linearization")
+            for (k, b) in enumerate(buses)
+                pf = [m.f for m in rg[b].powerfactory if m.f < fmax]
+                ph = [m.f for m in rg[b].phps if m.f < fmax]
+                scatter!(a2, pf ./ 1e3, fill(k + 0.12, length(pf)), marker = :circle, markersize = 6, color = :white,
+                         strokecolor = :gray20, strokewidth = 0.8, label = k == 1 ? "fit, PowerFactory EMT" : nothing)
+                scatter!(a2, ph ./ 1e3, fill(k - 0.12, length(ph)), marker = :xcross, markersize = 5, color = cols[1],
+                         label = k == 1 ? "fit, PHPS EMT" : nothing)
+            end
+            if r == 2
+                lines!(a2, [NaN], [NaN], color = :gray30, linewidth = 1.6, label = "|V|, PowerFactory EMT")
+                lines!(a2, [NaN], [NaN], color = cols[1], linewidth = 0.8, linestyle = :dash, label = "|V|, PHPS")
+            end
         end
-        Legend(fig[2, 1:2], a2, orientation = :horizontal, framevisible = false, labelsize = 7,
-               patchsize = (10, 6), tellheight = true, padding = (0, 0, 0, 0))
-        colsize!(fig.layout, 1, Relative(0.42)); rowgap!(fig.layout, 2)
+        Legend(fig[3, 1:2], a2, orientation = :horizontal, framevisible = false, labelsize = 7, patchsize = (10, 6),
+               tellheight = true, padding = (0, 0, 0, 0))
+        colsize!(fig.layout, 1, Relative(0.36)); rowgap!(fig.layout, 4)
         save(joinpath(out, "ringing_modes.pdf"), fig, pt_per_unit = 1)
         println("ringing_modes.pdf")
     else
