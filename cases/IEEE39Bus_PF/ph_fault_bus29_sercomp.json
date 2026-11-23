@@ -1,0 +1,22 @@
+{
+ "description": "IEEE39 PF-matched with Line_33 (26-29) 50 % series-compensated -- three-phase fault at Bus 29 through 0.001 pu, 0.1 s to 0.15 s (the subsynchronous network mode of the compensated line)",
+ "system": "system_phtrue_sercomp.json",
+ "solver": {
+  "method": "ida",
+  "dt": 0.0005,
+  "duration": 1.0
+ },
+ "events": [
+  {
+   "type": "BusFault",
+   "bus": 29,
+   "r": 0.001,
+   "x": 0.0,
+   "t_start": 0.1,
+   "t_duration": 0.05
+  }
+ ],
+ "output": {
+  "directory": "outputs/ph/ieee39_sercomp_bus29"
+ }
+}

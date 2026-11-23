@@ -68,6 +68,8 @@ function split_line_for_fault(case::Case, lf::LineFault)
     k = findfirst(l -> l.idx == lf.line_idx, case.lines)
     k === nothing && throw(ArgumentError("Line $(lf.line_idx) not found for LineFault"))
     line = case.lines[k]
+    line.xc == 0 || throw(ArgumentError("LineFault on $(line.idx): a fault along a series-compensated line is not " *
+                                        "implemented (where the capacitor sits is not in the data)"))
     max_bus = maximum(b.idx for b in case.buses)
     fault_bus = 99 <= max_bus ? max_bus + 1 : 99
     d = lf.distance

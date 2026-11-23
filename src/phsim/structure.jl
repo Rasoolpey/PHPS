@@ -361,6 +361,13 @@ function _structure_core(s::PHSystem, x, u; n = s.n, dcin = Dict{Int,Any}(), shu
         attach!(r, pn.to[l], -1.0 + 0im)
         push!(idx, r, r + 1)
     end
+    # series capacitors: the frame's -j C on the charge pair, coupled to their branch (-vc on the branch, +i on the pair)
+    for (a, j) in enumerate(s.cpos)
+        rc, rb = s.cidx[a], s.bidx[j]
+        s.stationary || _cblk!(J, rc, rc, -im / _scap_x(s, a))
+        _cblk!(J, rb, rc, -1.0 + 0im); _cblk!(J, rc, rb, 1.0 + 0im)
+        push!(idx, rc, rc + 1)
+    end
     # saturating cores (transformer.jl; the chapter's eq. tr:canonical): J = 0 within the branch, R = diag(R2, R1),
     # the HV loop driven by v_from / a, the source loop by v_to, the rotation and the clock a port of zero power
     for q in s.cores

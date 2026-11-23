@@ -59,7 +59,10 @@ struct LineData
     b::Float64                # total line charging
     tap::Float64
     phi::Float64              # phase shift [rad]
+    xc::Float64               # series capacitor's reactance (0: none); `x` stays the line's own series reactance, the
+                              # quasi-static network sees x - xc (the EMT models keep the capacitor as an element)
 end
+LineData(idx, bus1, bus2, r, x, b, tap, phi) = LineData(idx, bus1, bus2, r, x, b, tap, phi, 0.0)
 
 """
 One row of a case's `Shunt` table: a fixed shunt admittance at a bus.
@@ -169,7 +172,7 @@ function Case(path::String, raw::JSON3.Object)
     # Defaults as in Python PHPS YBusBuilder (x = 0.001, not the 0.01 of system_graph.LineData).
     lines = [LineData(_str(l, :idx, ""), _int(l, :bus1), _int(l, :bus2), _num(l, :r, 0.0),
                       _num(l, :x, 0.001), _num(l, :b, 0.0), _num(l, :tap, 1.0),
-                      _num(l, :phi, 0.0)) for l in _table(raw, :Line)]
+                      _num(l, :phi, 0.0), _num(l, :xc, 0.0)) for l in _table(raw, :Line)]
     shunts = [ShuntData(_str(s, :idx, ""), _int(s, :bus), _num(s, :g, 0.0), _num(s, :b, 0.0))
               for s in _table(raw, :Shunt)]
     components = [ComponentSpec(string(name), string(c[:type]), c[:params])

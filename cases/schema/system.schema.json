@@ -80,7 +80,8 @@
      "trans": {"type": "integer"},
      "Vn1": {"type": "number"},
      "Vn2": {"type": "number"},
-     "npar": {"type": "integer"}
+     "npar": {"type": "integer"},
+     "xc": {"type": "number", "minimum": 0, "description": "series capacitor's reactance, pu (optional, 0: none). x stays the line's own series reactance; the quasi-static network (load flow, RMS) sees x - xc; the EMT model (ph_system) keeps the capacitor as an element with its charge pair. Not with a fault along the line, travelling-wave lines, a series merge, a reduced inductor-only node or the zero axis."}
     }
    }
   },

@@ -136,6 +136,11 @@ impedances. The machines (isolated stars), converters (three-wire), loads (delta
 function zero_sequence_data(case; gen_buses, mode::Symbol = :physical, pf_json::AbstractString,
                             ratios = LINE_ZERO_RATIOS, zm0_3limb::Real = 5.0)
     mode in (:physical, :powerfactory) || throw(ArgumentError("zero_sequence_data: mode = $mode"))
+    # a series capacitor sits in every phase, so the zero axis would carry it too (and block DC there); its zero branch
+    # is not implemented: refused rather than silently dropped
+    any(l -> l.xc != 0, case.lines) &&
+        throw(ArgumentError("zero_sequence_data: series-compensated lines ($(join([l.idx for l in case.lines if l.xc != 0], ", "))) " *
+                            "have no zero-axis branch here"))
     pf = JSON3.read(read(pf_json, String))
     objs = pf.objects
     g(o, a) = (r = get(o.named, Symbol(a), nothing); r === nothing ? get(get(o, :matched, Dict()), Symbol(a), nothing) : r)

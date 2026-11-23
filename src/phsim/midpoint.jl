@@ -88,6 +88,10 @@ function phs_scales(s::PHSystem, x::AbstractVector{Float64})
         sc[mo.offset:mo.offset+5] .= 1 / s.omega_b
         sc[mo.offset+6] = 2 * mo.c.H
     end
+    if !isempty(s.cidx)                             # series capacitors' charges: their own group
+        r = reduce(vcat, [[i, i + 1] for i in s.cidx])
+        sc[r] .= max(maximum(abs, view(x, r)), 1e-12)
+    end
     if s.z0 !== nothing                             # the zero axis (zero at rest): the dq groups' scales
         z = s.z0
         qn = nd > 0 ? maximum(abs, view(x, 1:nd)) : 1.0

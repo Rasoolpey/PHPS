@@ -18,6 +18,8 @@
 #   v_k    = inj_k / (G_k + g_fault,k)                    at a node with conductance and no C
 #   phi_l' = (B^H v)_l - R_l i_l - j L_l i_l
 #   phi_s' = v_b - R_s i_s - j L_s i_s        (R_s > 0 only for a series R-L load)
+#   series capacitor on branch l (the case's `xc`, C_l = 1/xc): state qc_l = C_l vc_l / omega_b, energy
+#   omega_b |qc|^2 / (2 C_l); phi_l' gets -vc_l and qc_l' = i_l - j C_l vc_l (states after everything else)
 #   v_dq   = j e^{-j delta} v_k / a_m,   i_net = -j e^{j delta} (i_d + j i_q)
 #   lam_d' = v_d - Ra i_d + omega_b omega lam_q,   lam_q' = v_q - Ra i_q - omega_b omega lam_d
 #   lam_fd' = v_f - Rfd i_fd,   lam_1d' = -R1d i_1d,   lam_1q' = -R1q i_1q,   lam_2q' = -R2q i_2q
@@ -184,6 +186,8 @@ order; `conv` the converters, whose source rows follow the bus rows; `cores` the
 otherwise; `:short` evaluates every core short-circuited, for the step rule's bound). `stationary` selects the frame
 of the network states: `false` (the default) the synchronous frame, `true` the stationary frame
 (`docs/realtime/docs/STEP0_CONTRACTS.md` A3-A4; made by `phs_frame`), with `theta0` the frame angle at t = 0.
+`cpos` the branch positions with a series capacitor (`net.Xs > 0`), `cidx` their charge pairs' first states, `cof[j]`
+the capacitor of branch position `j` (0 if none).
 """
 struct PHSystem
     net::PhysicalNetwork
@@ -219,6 +223,9 @@ struct PHSystem
     sl::Vector{Int}            # index in `statics` of each bus row (0 without one)
     z0::Any                    # the zero-axis network (zeroseq.jl, upgrade 4; nothing: none, the model as before)
     asym::Any                  # phase-asymmetric faults in force (`af`: (row, G_abc, ground)) and the frame angle theta
+    cpos::Vector{Int}          # series capacitors: branch positions, first states, capacitor of each branch position
+    cidx::Vector{Int}
+    cof::Vector{Int}
     stationary::Bool
     theta0::Float64
 end
@@ -318,6 +325,8 @@ function ph_system(sys::DAESystem; v0 = nothing, loads::Symbol = :parallel, circ
         for l in 1:m
             c = get(cl, pn.branch[l], nothing)
             (c === nothing || c.b <= 0 || pn.a[l] != 1) && continue
+            pn.Xs[l] == 0 || throw(ArgumentError("ph_system: $(pn.branch[l]) is series-compensated; a travelling-wave " *
+                                                 "line with a series capacitor is not implemented"))
             i, j = pn.from[l], pn.to[l]
             pn.C[i] -= c.b / 2; pn.C[j] -= c.b / 2
             abs(pn.C[i]) < 1e-12 && (pn.C[i] = 0.0); abs(pn.C[j]) < 1e-12 && (pn.C[j] = 0.0)
@@ -457,6 +466,8 @@ function ph_system(sys::DAESystem; v0 = nothing, loads::Symbol = :parallel, circ
                                                  "on its ratio side"))
             hasgen[pn.from[l]] && throw(ArgumentError("ph_system: $(pn.branch[l]) joins two " *
                                                       "generator buses"))
+            pn.Xs[l] == 0 || throw(ArgumentError("ph_system: $(pn.branch[l]) at the generator bus $b is " *
+                                                 "series-compensated; the series merge has no capacitor"))
             dropped[l] = true
             push!(merged, k)
             push!(mdata, (; name = nm, w = wind(b, pp, pn.L[l], pn.R[l]),
@@ -493,13 +504,14 @@ function ph_system(sys::DAESystem; v0 = nothing, loads::Symbol = :parallel, circ
             pn.to[l] == k || throw(ArgumentError("ph_system: $(pn.branch[l]) has the converter on its ratio side"))
             (hasgen[pn.from[l]] || pn.from[l] > nb) &&
                 throw(ArgumentError("ph_system: $(pn.branch[l]) joins a converter to a generator or converter bus"))
+            pn.Xs[l] == 0 || throw(ArgumentError("ph_system: $(pn.branch[l]) at converter bus $b is series-compensated"))
             pn.to[l] = row
             pn.L[l] += Lc
             pn.branch[l] *= "+" * nm
             inc[k] = Int[]
             push!(merged, k)
         else
-            push!(pn.from, k); push!(pn.to, row); push!(pn.a, 1.0 + 0im); push!(pn.R, 0.0); push!(pn.L, Lc)
+            push!(pn.from, k); push!(pn.to, row); push!(pn.a, 1.0 + 0im); push!(pn.R, 0.0); push!(pn.L, Lc); push!(pn.Xs, 0.0)
             push!(pn.branch, "conv_" * nm)
             push!(dropped, false); push!(istw, false)
             l = length(pn.R)
@@ -558,6 +570,8 @@ function ph_system(sys::DAESystem; v0 = nothing, loads::Symbol = :parallel, circ
             l = branches[j]
             imag(pn.a[l]) == 0 || throw(ArgumentError("ph_system: $(pn.branch[l]) at the inductor-only " *
                                                       "bus $b has a phase-shifting ratio"))
+            pn.Xs[l] == 0 || throw(ArgumentError("ph_system: $(pn.branch[l]) at the inductor-only bus $b is " *
+                                                 "series-compensated; the reduction has no capacitor"))
             a = real(pn.a[l])
             atfrom = pn.from[l] == k
             push!(gamma, atfrom ? 1 / a : -1.0)
@@ -696,9 +710,18 @@ function ph_system(sys::DAESystem; v0 = nothing, loads::Symbol = :parallel, circ
         push!(cnames, "zero_axis"); push!(ckind, :zero)
     end
     asym = (; af = Any[], theta = Ref(0.0), theta_pw = Float64(theta_pw))
+    # series capacitors: a charge pair each, after everything else (the capacitor is booked with its line in the
+    # account: the line owns it, as it owns its series inductor)
+    cpos = [j for (j, l) in enumerate(branches) if pn.Xs[l] > 0]
+    any(j -> any(q -> q.pos == j, pcores), cpos) && throw(ArgumentError("ph_system: a series capacitor on a cored branch"))
+    cidx, cof = Int[], zeros(Int, length(branches))
+    for (a, j) in enumerate(cpos)
+        push!(cidx, off); cof[j] = a; off += 2
+    end
     return PHSystem(pn, pn.omega_b, dyn, alg, merged, qidx, branches, bidx, charge, sidx, Cown,
                     Rsh, cut, cuts, cutof, bcut, machines, off - 1, cnames, ckind, conv, pcores, iclk, Ref{Any}(nothing),
-                    tw, twG, zeros(ComplexF64, length(twG)), nsec, motors, statics, sl, z0, asym, false, 0.0)
+                    tw, twG, zeros(ComplexF64, length(twG)), nsec, motors, statics, sl, z0, asym, cpos, cidx, cof,
+                    false, 0.0)
 end
 
 # the zero-axis network (review 80b, items 1, 4): zero nodes = bus rows touched by a zero element; lumped lines: R0, L0
@@ -754,6 +777,10 @@ end
 
 _has_load(pn::PhysicalNetwork, Cown, k) = pn.G[k] > 0 || Cown[k] > 0 || k in pn.sh_bus
 
+# series capacitor a: its reactance (1/C) and its voltage vc = omega_b xc qc (the effort of its charge pair)
+@inline _scap_x(s::PHSystem, a::Int) = s.net.Xs[s.branches[s.cpos[a]]]
+@inline _scap_v(s::PHSystem, x, a::Int) = s.omega_b * _scap_x(s, a) * _cx(x, s.cidx[a])
+
 """    phs_state_names(s) -> Vector{String}"""
 function phs_state_names(s::PHSystem)
     ids = s.net.net.bus_ids
@@ -800,6 +827,9 @@ function phs_state_names(s::PHSystem)
         for q in z.dyn0; push!(names, "q0_$(ids[z.nodes[q]])"); end
         for b in z.br; push!(names, "phi0_$(b.name)"); end
         for h in z.sh; push!(names, "phi0_sh_$(h.name)"); end
+    end
+    for j in s.cpos
+        push!(names, "qc_$(s.net.branch[s.branches[j]])_Re", "qc_$(s.net.branch[s.branches[j]])_Im")
     end
     return names
 end
@@ -1245,7 +1275,14 @@ function phs_rhs!(dx, s::PHSystem, x::AbstractVector, u::PHInput)
         d = NETWORK_FROM_TEMPLATE[] ? tpl_branch_row(pn.R[l], pn.L[l], pn.a[l], s.stationary, i, v[pn.from[l]], v[pn.to[l]]) :
             s.stationary ? v[pn.from[l]] / pn.a[l] - v[pn.to[l]] - pn.R[l] * i :
                            v[pn.from[l]] / pn.a[l] - v[pn.to[l]] - pn.R[l] * i - im * pn.L[l] * i
+        s.cof[j] > 0 && (d -= _scap_v(s, x, s.cof[j]))   # a series capacitor's voltage
         dx[s.bidx[j]], dx[s.bidx[j]+1] = real(d), imag(d)
+    end
+    for (a, j) in enumerate(s.cpos)                    # series capacitors: qc' = i - j C vc
+        vc, X = _scap_v(s, x, a), _scap_x(s, a)
+        d = NETWORK_FROM_TEMPLATE[] ? tpl_scap_row(X, s.stationary, f.ib[j], vc) :
+            s.stationary ? f.ib[j] : f.ib[j] - im * vc / X
+        dx[s.cidx[a]], dx[s.cidx[a]+1] = real(d), imag(d)
     end
     for q in s.cores                                   # a cored branch: the HV and source loops (transformer.jl)
         l, j = s.branches[q.pos], q.pos
@@ -1391,6 +1428,9 @@ function phs_energy(s::PHSystem, x::AbstractVector)
         q.on && (H += q.sg * motor_energy(mo.c, q.ls, q.l1, q.l2, q.p / q.sg, wb))
     end
     H += _zero_energy(s, x)
+    for a in eachindex(s.cpos)
+        H += s.omega_b * _scap_x(s, a) * abs2(_cx(x, s.cidx[a])) / 2
+    end
     return H
 end
 
@@ -1442,6 +1482,10 @@ function phs_gradient(s::PHSystem, x::AbstractVector)
         for q in zz.dyn0; z[zz.qidx0[q]] = wb * x[zz.qidx0[q]] / zz.C0[q]; end
         for (b, idx) in zip(zz.br, zz.bidx0); z[idx] = wb * x[idx] / b.L; end
         for (h, idx) in zip(zz.sh, zz.sidx0); z[idx] = wb * x[idx] / h.L; end
+    end
+    for a in eachindex(s.cpos)                         # series capacitors' voltages
+        vc = _scap_v(s, x, a)
+        z[s.cidx[a]], z[s.cidx[a]+1] = real(vc), imag(vc)
     end
     for mo in s.motors                                 # currents and speed; the lags have no energy
         q, o = _motor_state(mo, x, wb), mo.offset
@@ -1500,6 +1544,12 @@ function phs_matrices(s::PHSystem, x::AbstractVector{Float64}, u::PHInput)
         R[r, r] = R[r+1, r+1] = pn.R[l]
         attach!(r, pn.from[l], 1 / pn.a[l])
         attach!(r, pn.to[l], -1.0 + 0im)
+    end
+    for (a, j) in enumerate(s.cpos)                      # series capacitors: frame -j C, the branch's -vc, its +i
+        rc, rb = s.cidx[a], s.bidx[j]
+        s.stationary || cblock!(J, rc, rc, -im / _scap_x(s, a))
+        cblock!(J, rb, rc, -1.0 + 0im)
+        cblock!(J, rc, rb, 1.0 + 0im)
     end
     for c in s.cuts
         c.machine == 0 || continue
@@ -1578,7 +1628,7 @@ construction, and those of the node's branches and of its machine's windings are
 `supply` is the boundary power (all shaft and field power), `interconnection` the sum of the
 internal port powers (zero), `H` the total energy and `dH` its rate.
 
-Ownership: a line owns its series inductor and half its charging at each end; a load owns its
+Ownership: a line owns its series inductor, its series capacitor (if any) and half its charging at each end; a load owns its
 conductance, its shunt inductor and its capacitor; a merged transformer owns `x_ext`, `r_ext` of
 the stator they share; a machine owns its windings; a rotor owns the kinetic energy and converts
 between the air-gap power `Tem omega` and the shaft. At a reduced node each element still owns
@@ -1657,7 +1707,14 @@ function phs_ledger(s::PHSystem, x::AbstractVector{Float64}, u::PHInput; dx = no
         pser = real(conj(i) * (v[fr] / pn.a[l] - v[to]))
         inter += pser
         rs = s.bcut[j] == 0 ? real(conj(i) * _cx(dx, s.bidx[j])) : rser[j]
-        add!(pn.L[l] * abs2(i) / (2 * wb) + c * (ecap[fr] + ecap[to]), pn.R[l] * abs2(i),
+        esc = 0.0
+        if s.cof[j] > 0                                # its series capacitor: storage, and its rate along `dx`
+            a = s.cof[j]
+            vc = _scap_v(s, x, a)
+            esc = abs2(vc) / (2 * wb * _scap_x(s, a))
+            rs += real(conj(vc) * _cx(dx, s.cidx[a]))
+        end
+        add!(pn.L[l] * abs2(i) / (2 * wb) + esc + c * (ecap[fr] + ecap[to]), pn.R[l] * abs2(i),
              pser + c * (pcap[fr] + pcap[to]), rs + c * (rcap[fr] + rcap[to]),
              abs(pser) + c * (abs(pcap[fr]) + abs(pcap[to])))
     end
@@ -1883,6 +1940,7 @@ function _network_pairs(s::PHSystem)
     for mo in s.motors                                 # composite loads' motors: all three flux pairs are in the network frame
         push!(pairs, mo.offset, mo.offset + 2, mo.offset + 4)
     end
+    append!(pairs, s.cidx)                             # series capacitors' charges
     return sort!(pairs)
 end
 
@@ -1986,7 +2044,7 @@ function phs_equilibrium(eq::EquilibriumResult; loads::Symbol = :parallel, circu
     # the current every bus needs from its machines at these voltages: Kirchhoff's current law
     # over all elements of the case (the merged transformers included), at nominal frequency
     Iext = complex.(pn.G, pn.C) .* V
-    ibr(l) = (V[pn.from[l]] / pn.a[l] - V[pn.to[l]]) / complex(pn.R[l], pn.L[l])
+    ibr(l) = (V[pn.from[l]] / pn.a[l] - V[pn.to[l]]) / complex(pn.R[l], pn.L[l] - pn.Xs[l])   # (net of a series capacitor)
     # travelling-wave lines: the same bus voltages (the load flow's), each line's own steady state (constant phasors) at
     # them; their history currents twJ = twG v - i_line held at those values (the new equilibrium: the machines supply
     # what the travelling-wave network needs at these voltages, so their outputs differ slightly from the load flow's)
@@ -2023,6 +2081,9 @@ function phs_equilibrium(eq::EquilibriumResult; loads::Symbol = :parallel, circu
     end
     for (j, l) in enumerate(s.branches)
         s.bcut[j] == 0 && setc!(s.bidx[j], pn.L[l] * ibr(l) / wb)
+    end
+    for (a, j) in enumerate(s.cpos)                  # a series capacitor: vc = -j xc i, qc = C vc / omega_b = -j i / omega_b
+        setc!(s.cidx[a], -im * ibr(s.branches[j]) / wb)
     end
     for c in s.cuts                                  # Phi = M i / omega_b
         c.machine == 0 || continue

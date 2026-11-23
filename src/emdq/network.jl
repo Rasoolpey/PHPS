@@ -26,7 +26,8 @@
 
 The dynamic network of a case: bus order `net`, base frequency `omega_b`; branches
 (`from`, `to` as bus rows, complex ratio `a` at `from`, `R`, `L`, case index `branch`); node
-capacitances `C` and conductances `G`; shunt inductors (`sh_bus` as bus rows, `Lsh`).
+capacitances `C` and conductances `G`; shunt inductors (`sh_bus` as bus rows, `Lsh`); `Xs` the reactance of each
+branch's series capacitor (0: none; the case's `xc`).
 """
 struct PhysicalNetwork
     net::Network
@@ -41,7 +42,13 @@ struct PhysicalNetwork
     G::Vector{Float64}
     sh_bus::Vector{Int}
     Lsh::Vector{Float64}
+    Xs::Vector{Float64}
 end
+PhysicalNetwork(net, omega_b, from, to, a, R, L, branch, C, G, sh_bus, Lsh) =
+    PhysicalNetwork(net, omega_b, from, to, a, R, L, branch, C, G, sh_bus, Lsh, zeros(length(R)))
+# this file's element equations have no series capacitor; the port-Hamiltonian model (`phsim/system.jl`) has
+_pn_noscap(p::PhysicalNetwork, f) = all(iszero, p.Xs) ||
+    throw(ArgumentError("$f: a series-compensated branch; this network model has no series capacitor (use ph_system)"))
 
 pn_sizes(p::PhysicalNetwork) = (nbus(p.net), length(p.R), length(p.Lsh))
 
@@ -62,15 +69,16 @@ function physical_network(case::Case; omega_b::Real = 2pi * 60, loads::Bool = tr
     net = Network(case)
     n = nbus(net)
     C, G = zeros(n), zeros(n)
-    from, to, a, R, L, names = Int[], Int[], ComplexF64[], Float64[], Float64[], String[]
+    from, to, a, R, L, names, Xs = Int[], Int[], ComplexF64[], Float64[], Float64[], String[], Float64[]
     for l in case.lines
         (haskey(net.index, l.bus1) && haskey(net.index, l.bus2)) || continue
         l.r >= 0 || throw(ArgumentError("physical_network: line $(l.idx) has r = $(l.r) < 0"))
         l.x > 0 || throw(ArgumentError("physical_network: line $(l.idx) has x = $(l.x) <= 0; " *
                                        "a series inductor needs x > 0"))
         l.b >= 0 || throw(ArgumentError("physical_network: line $(l.idx) has b = $(l.b) < 0"))
+        l.xc >= 0 || throw(ArgumentError("physical_network: line $(l.idx) has a series capacitor xc = $(l.xc) < 0"))
         i, j = net.index[l.bus1], net.index[l.bus2]
-        push!(from, i); push!(to, j); push!(R, l.r); push!(L, l.x); push!(names, l.idx)
+        push!(from, i); push!(to, j); push!(R, l.r); push!(L, l.x); push!(names, l.idx); push!(Xs, l.xc)
         push!(a, l.tap * complex(cos(l.phi), sin(l.phi)))
         C[i] += l.b / 2
         C[j] += l.b / 2
@@ -97,7 +105,7 @@ function physical_network(case::Case; omega_b::Real = 2pi * 60, loads::Bool = tr
             shunt!(net.index[bus], P / V02, -Q / V02, "load")
         end
     end
-    return PhysicalNetwork(net, Float64(omega_b), from, to, a, R, L, names, C, G, sh_bus, Lsh)
+    return PhysicalNetwork(net, Float64(omega_b), from, to, a, R, L, names, C, G, sh_bus, Lsh, Xs)
 end
 
 """
@@ -120,6 +128,7 @@ The right-hand sides of the complex equations: `fv = (C/omega_b) dv/dt`,
 the algebraic KCL constraint.
 """
 function pn_flows(p::PhysicalNetwork, v, i, ish, iext)
+    _pn_noscap(p, "pn_flows")
     B = pn_incidence(p)
     fv = iext .- B * i .- p.G .* v .- im .* p.C .* v
     for (s, k) in enumerate(p.sh_bus)
@@ -133,8 +142,8 @@ end
 """
     pn_energy(p, v, i, ish) -> the network's stored energy (pu*s).
 """
-pn_energy(p::PhysicalNetwork, v, i, ish) =
-    (sum(p.C .* abs2.(v)) + sum(p.L .* abs2.(i)) + sum(p.Lsh .* abs2.(ish))) / (2 * p.omega_b)
+pn_energy(p::PhysicalNetwork, v, i, ish) = (_pn_noscap(p, "pn_energy");
+    sum(p.C .* abs2.(v)) + sum(p.L .* abs2.(i)) + sum(p.Lsh .* abs2.(ish))) / (2 * p.omega_b)
 
 """
     pn_balance(p, v, i, ish, iext) -> NamedTuple
@@ -146,6 +155,7 @@ are `Re(conj(state) * flow)`, the time derivative of each element's energy.
 `total_error` is `dH/dt - (supply - losses)`.
 """
 function pn_balance(p::PhysicalNetwork, v, i, ish, iext)
+    _pn_noscap(p, "pn_balance")
     f = pn_flows(p, v, i, ish, iext)
     B = pn_incidence(p)
     Bv = B' * v
@@ -182,6 +192,7 @@ The real linear port-Hamiltonian descriptor form `E dx/dt = (J - R) x + Bp u`, `
 (`G`, branch `R`). Then `dH/dt = -x' R x + y' u` along every solution (Proposition 1).
 """
 function pn_descriptor(p::PhysicalNetwork)
+    _pn_noscap(p, "pn_descriptor")
     n, m, ns = pn_sizes(p)
     nx = 2 * (n + m + ns)
     E, J, R = zeros(nx, nx), zeros(nx, nx), zeros(nx, nx)
@@ -232,6 +243,7 @@ and the node rows then give `i_ext = Y v` with
 `Y = B diag(1/(R + jL)) B^H + diag(G + jC) + sum_s 1/(j L_s) e_s e_s'`.
 """
 function pn_quasistatic_ybus(p::PhysicalNetwork)
+    _pn_noscap(p, "pn_quasistatic_ybus")
     n, _, _ = pn_sizes(p)
     B = Matrix(pn_incidence(p))
     Y = B * Diagonal(1.0 ./ complex.(p.R, p.L)) * B' + Diagonal(complex.(p.G, p.C))

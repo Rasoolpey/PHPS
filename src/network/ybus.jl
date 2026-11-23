@@ -87,7 +87,7 @@ end
 function _stamp_line!(s::_Stamps, net::Network, l::LineData)
     (haskey(net.index, l.bus1) && haskey(net.index, l.bus2)) || return s
     i, j = net.index[l.bus1], net.index[l.bus2]
-    y_series = _py_cdiv(1.0, complex(l.r, l.x))
+    y_series = _py_cdiv(1.0, complex(l.r, l.x - l.xc))      # (a series capacitor: the net reactance)
     y_shunt = complex(0.0, l.b / 2.0)
     # a = tap * (cos(phi) + 1j*sin(phi)) with CPython float*complex semantics
     c, sn = cos(l.phi), sin(l.phi)

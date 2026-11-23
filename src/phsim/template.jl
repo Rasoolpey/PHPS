@@ -1094,6 +1094,32 @@ end
     vfrom / a - vto - R * i + (stationary ? zero(i) : -im * L * i)
 
 """
+    SeriesCapTemplate(X, wb; stationary = false)
+
+A branch's series capacitor (reactance `X`, C = 1/X): state the charge pair qc (vc = omega_b X qc), storage
+omega_b X abs2(qc) / 2; `J` the frame's -j C and the port `:i` (its branch's current pair, coefficient 1), the branch's
+row receiving -vc; no dissipation.
+"""
+struct SeriesCapTemplate <: PHTemplateComponent
+    X::Float64
+    wb::Float64
+    stationary::Bool
+end
+SeriesCapTemplate(X, wb; stationary::Bool = false) = SeriesCapTemplate(X, wb, stationary)
+tpl_states(::SeriesCapTemplate) = ["qc_re", "qc_im"]
+tpl_energy(c::SeriesCapTemplate, x) = c.wb * c.X * (x[1]^2 + x[2]^2) / 2
+tpl_gradient(c::SeriesCapTemplate, x) = c.wb * c.X .* x
+tpl_domain(::SeriesCapTemplate, x) = nothing
+function tpl_block(c::SeriesCapTemplate, x, ext)
+    T = _tpl_T(x, ext); J = zeros(T, 4, 4); R = zeros(T, 4, 4)
+    c.stationary || _tpl_frame!(J, 1, 1 / c.X)
+    _tpl_cskew!(J, 1, 3, 1.0 + 0im)
+    return (; J, R, G = zeros(T, 4, 0), v = T[], ports = [:i], port_dims = [2], sources = String[])
+end
+"""`tpl_scap_row(X, stationary, i, vc)`: the capacitor's row from its block's entries: i - j vc / X."""
+@inline tpl_scap_row(X, stationary::Bool, i, vc) = i + (stationary ? zero(vc) : -im * vc / X)
+
+"""
     ShuntTemplate(R, L, wb; stationary = false)
 
 A shunt R-L branch at a node: as `BranchTemplate` with the port `:v` (coefficient 1), the node receiving -i.
@@ -1210,6 +1236,9 @@ function tpl_placements(s::PHSystem, x, u)
         L = [pn.L[s.branches[j]] for j in c.pos]; Rb = [pn.R[s.branches[j]] for j in c.pos]
         push!(pl, TplPlacement(CutTemplate(L, Rb, c.LL, c.RL, c.gamma, c.c, wb; stationary = st),
                                vcat([pair(s.bidx[j]) for j in c.pos]...), vcat([bus(c.far[a]) for a in eachindex(c.pos)]...)))
+    end
+    for (a, j) in enumerate(s.cpos)                     # series capacitors: the port is their branch's current pair
+        push!(pl, TplPlacement(SeriesCapTemplate(_scap_x(s, a), wb; stationary = st), pair(s.cidx[a]), pair(s.bidx[j])))
     end
     for (j, k) in enumerate(pn.sh_bus)
         s.sidx[j] > 0 || continue
